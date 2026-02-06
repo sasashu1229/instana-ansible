@@ -9,6 +9,10 @@ files/com.instana.agent.main.sender.Backend.cfg
 # 暗号化されていない認証情報
 inventory.ini
 
+# 大容量RPMファイル（GitHubの100MB制限のため）
+# RPMファイルは別途ダウンロードまたは共有してください
+files/*.rpm
+
 # バックアップファイル
 *.bak
 *.backup
