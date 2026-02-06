@@ -7,12 +7,12 @@
     <server>
       <id>features</id>
       <username>_</username>
-      <password>O_xPXPnaToa9ZpkiPG0Elg</password>
+      <password>YOUR_INSTANA_API_KEY_HERE</password>
     </server>
     <server>
       <id>shared</id>
       <username>_</username>
-      <password>O_xPXPnaToa9ZpkiPG0Elg</password>
+      <password>YOUR_INSTANA_API_KEY_HERE</password>
     </server>
     <!-- for mirrors requiring auth
     <server>
