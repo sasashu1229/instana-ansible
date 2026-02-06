@@ -1,0 +1,29 @@
+---
+- name: "Process {{ item }}.csv to import"
+  become: true
+  community.docker.docker_container_exec:
+    container: instana-postgres
+    user: root
+    argv:
+    - /bin/sh
+    - "-c"
+    - sed '1d' "/tmp/dump/{{ item }}.csv" | sed -e "s/{{ old_tenant_unit_id.stdout }}/{{ new_tenant_unit_id.stdout_lines[1] }}/g" | sed -e 's/\\\\\"/\\\"/g' > "/mnt/data/extern/{{ item }}.csv"
+
+- name: "Truncate table {{ item }}"
+  become: true
+  community.docker.docker_container_exec:
+    container: instana-postgres
+    command: psql -U postgres tenantdb -c "TRUNCATE {{ item }} CASCADE;"
+
+- name: "Get csv header line of {{ item }}.csv"
+  become: true
+  community.docker.docker_container_exec:
+    container: instana-postgres
+    command: "head -n 1 /tmp/dump/{{ item }}.csv"
+  register: columns
+
+- name: "Import dump file into table {{ item }}"
+  become: true
+  community.docker.docker_container_exec:
+    container: instana-postgres
+    command: psql -U postgres tenantdb -c "COPY {{ item }}({{ columns.stdout }}) FROM '/mnt/data/extern/{{ item }}.csv' WITH (DELIMITER ',',FORMAT CSV);"

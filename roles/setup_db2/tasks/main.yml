@@ -1,0 +1,104 @@
+---
+- name: Include pre check task
+  ansible.builtin.include_tasks: pre_check.yaml
+  vars:
+    app: "{{ item }}"
+  loop: "{{ db2_instances }}"
+  tags: pre-check
+
+- name: Include OS-Specific variables
+  ansible.builtin.include_vars: "{{ ansible_os_family }}.yml"
+
+- name: Import get_db2 tasks
+  ansible.builtin.import_tasks: get_db2.yml
+  become: true
+  tags: download
+
+- name: Import packages-redhat tasks
+  ansible.builtin.import_tasks: packages-redhat.yml
+  become: true
+  when: ansible_os_family == "RedHat"
+
+- name: Import packages-debian tasks
+  ansible.builtin.import_tasks: packages-debian.yml
+  become: true
+  when: ansible_os_family == "Debian"
+
+- name: Import instance_users tasks
+  ansible.builtin.import_tasks: instance_users.yml
+  become: true
+  tags: ['users', 'setup']
+
+- name: Adding entry to /etc/hosts
+  become: true
+  ansible.builtin.lineinfile:
+    dest: /etc/hosts
+    regexp: "^{{ ansible_default_ipv4.address }} {{ ansible_hostname }}$"
+    line: "{{ ansible_default_ipv4.address }} {{ ansible_hostname }}"
+  tags: ['dont-on-docker', 'setup']
+
+- name: Running DB2 Pre Requisits Check
+  become: true
+  ansible.builtin.command: "{{ db2_binary.dest }}/{{ db2_creates }}/db2prereqcheck -i -s -v 11.5.0.0"
+  register: precheck
+  failed_when: "'failed' in precheck.stderr"
+  changed_when: false
+  tags: setup
+
+- name: Parse response file
+  become: true
+  ansible.builtin.template:
+    src: db2server.j2.rsp
+    dest: "{{ db2_response_locations }}"
+    mode: '0644'
+  tags: parse
+
+- name: Installing DB2
+  become: true
+  ansible.builtin.command: "{{ db2_binary.dest }}/{{ db2_creates }}/db2setup -r {{ db2_response_locations }} -f sysreq"
+  register: db2_setup
+  args:
+    creates: "{{ resp.file }}"
+  tags: install
+
+- name: Setup results
+  become: true
+  ansible.builtin.debug:
+    var: db2_setup
+  tags: download
+
+- name: Include create_instances tasks
+  ansible.builtin.include_tasks: create_instances.yml
+  loop: "{{ db2_instances }}"
+
+- name: Include create_sample_databases tasks
+  ansible.builtin.include_tasks: create_sample_databases.yml
+  loop: "{{ sample_databases }}"
+  when: sample_databases is defined
+  tags: databases
+
+- name: Include create_databases tasks
+  ansible.builtin.include_tasks: create_databases.yml
+  when: databases is defined
+  tags: databases
+
+- name: Change port number
+  become: true
+  ansible.builtin.replace:
+    path: /etc/services
+    regexp: "^db2c_{{ item.name }}\\s+[0-9]{3,5}/tcp"
+    replace: "db2c_{{ item.name }}   {{ item.port_number }}/tcp"
+  register: db2_changed_port_number_result
+  loop: "{{ db2_instances }}"
+
+- name: Include restart db2 task
+  ansible.builtin.include_tasks: restart_db2.yaml
+  vars:
+    app: "{{ item }}"
+  loop: "{{ db2_changed_port_number_result.results }}"
+
+- name: Import license_db2 tasks
+  ansible.builtin.import_tasks: license_db2.yml
+  become: true
+  tags: licensedb2
+  when: db2_binary.url is defined

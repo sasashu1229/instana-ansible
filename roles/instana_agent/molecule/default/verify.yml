@@ -1,0 +1,26 @@
+---
+# This is an example playbook to execute Ansible tests.
+
+- name: Verify
+  hosts: all
+  gather_facts: false
+  tasks:
+  - ignore_errors: yes
+    become: yes
+    block:
+    - name: Include main variables
+      become: true
+      include_vars: ../../defaults/main.yml
+
+    - name: Check existence of instana-agent package
+      yum:
+        list: instana-agent-{{ instana.agent.package_type }}
+      register: result_instana_agent
+
+  - name: Confirmation of results
+    assert:
+      that: "{{ result is not failed }}"
+    loop:
+    - "{{ result_instana_agent }}"
+    loop_control:
+      loop_var: result

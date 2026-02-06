@@ -1,0 +1,51 @@
+---
+# As mentioned by IBM if you set password,uid,gid,group_name 
+# If you provide at least user,password and group_name DB2 setup will create those users
+# TODO: Use the new block feature since `when` clause is equal on all tasks
+- name: Create home directory for db2 user
+  file:
+    path: "{{ item.parent_home_directory }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  loop: "{{ db2_instances }}"
+
+- name: Instance | Creating DB2 Fenced Groups
+  group:
+    name: "{{ item.fenced_group_name }}"
+    gid: "{{ item.gid | default(omit) }}"
+    state: present
+  loop: "{{ db2_instances }}"
+
+- name: Instance | Creating DB2 Instance Groups
+  group:
+    name: "{{ item.group_name }}"
+    gid: "{{ item.fenced_gid | default(omit) }}"
+    state: present
+  loop: "{{ db2_instances }}"
+
+- name: Instance | Creating DB2 Instance Users
+  user:
+    name: "{{ item.name }}"
+    group: "{{ item.group_name }}"
+    # password: "{{ item.password | password_hash('sha512') }}"
+    password: "{{ lookup('vars', item.name + '_password') | password_hash('sha512') }}"
+    home: "{{ item.home_directory | default(omit) }}"
+    uid: "{{ item.uid | default(omit) }}"
+    createhome: "{{ item.createhome | default(true) }}"
+    shell: /bin/bash
+  loop: "{{ db2_instances }}"
+
+- name: Instance | Creating DB2 Fenced Users
+  user:
+    name: "{{ item.fenced_username }}"
+    group: "{{ item.fenced_group_name }}"
+    # password: "{{ item.fenced_password | password_hash('sha512') }}"
+    password: "{{ lookup('vars', item.fenced_username + '_password') | password_hash('sha512')}}"
+    home: "{{ item.fenced_home_directory | default(omit) }}"
+    uid: "{{ item.fenced_uid | default(omit) }}"
+    createhome: "{{ item.createhome | default(true) }}"
+    shell: /bin/bash
+  loop: "{{ db2_instances }}"
+  register: db2_fenced_user

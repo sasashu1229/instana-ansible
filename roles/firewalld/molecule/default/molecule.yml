@@ -1,0 +1,24 @@
+---
+dependency:
+  name: galaxy
+driver:
+  name: vagrant
+  provider: 
+    name: virtualbox
+platforms:
+  - name: instance-firewalld
+    box: "generic/rhel8"
+provisioner:
+  name: ansible
+  connection_options:
+    firewalld_enabled: true
+    firewalld_allow_ports:
+    - 9080/tcp
+    - 9443/tcp
+    firewalld_allow_services:
+    - ssh
+    - http
+    - https
+    - vnc-server
+verifier:
+  name: ansible

@@ -1,0 +1,30 @@
+---
+# This is an example playbook to execute Ansible tests.
+
+- name: Verify
+  hosts: all
+  gather_facts: false
+  tasks:
+  - name: Check jar file
+    file:
+      path: /var/lib/java/db2jcc4.jar
+    ignore_errors: true
+    register: jar_file_result
+
+  - debug:
+      msg: "{{ jar_file_result }}"
+
+  - name: Check of application startup
+    uri:
+      url: "http://localhost:{{ websphere_server.httpPort }}/{{ item.id }}/"
+    loop: "{{ websphere_server.apps }}"
+    register: result
+
+  - name: Check result
+    assert:
+      that: "not '{{ jar_file_result.failed }}'"
+
+  - name: Check result
+    assert:
+      that: "{{ item.status }} == 200"
+    loop: "{{ result.results }}"

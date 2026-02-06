@@ -1,0 +1,96 @@
+---
+- name: Install required modules
+  become: true
+  yum:
+    name:
+      - gtk2
+      - libXtst
+      - xorg-x11-fonts-Type1
+      - psmisc
+      - libnsl
+      - unzip
+    state: present
+  tags:
+    - installwas
+
+- name: Create Websphere directory
+  become: true
+  file:
+    path: "/opt/IBM/WebSphere"
+    state: directory
+    owner: "root"
+    group: "root"
+    mode: "775"
+  tags:
+    - installwas
+
+- name: Check if WebShere is installed
+  become: true
+  stat:
+    path: /opt/IBM/WebSphere/wlp
+  register: websphere_wlp_register
+  tags:
+    - installwas
+
+- block:
+    - name: Copy WAS
+      become: true
+      copy:
+        src: "was.zip"
+        dest: /opt/IBM/WebSphere
+        owner: root
+        group: root
+        mode: 0644
+      tags:
+        - installwas
+
+    - name: Unarchive WAS
+      become: true
+      unarchive:
+        src: /opt/IBM/WebSphere/was.zip
+        dest: /opt/IBM/WebSphere
+        remote_src: yes
+        owner: "root"
+        group: "root"
+      ignore_errors: "{{ ansible_check_mode }}"
+      tags:
+        - installwas
+ 
+  when: not websphere_wlp_register.stat.exists
+
+- name: Check if WebShere server is created
+  become: true
+  stat:
+    path: /opt/IBM/WebSphere/wlp/usr/servers/{{ websphere_server.name }}
+  register: websphere_server_register
+  tags:
+    - installwas
+
+- name: Create WebSphere Server
+  become: true
+  command:
+    cmd: "./bin/server create {{ websphere_server.name }}"
+    chdir: /opt/IBM/WebSphere/wlp
+  when: not websphere_server_register.stat.exists
+  ignore_errors: "{{ ansible_check_mode }}"
+  tags:
+    - installwas
+
+- name: Check Websphere server status
+  become: true
+  command:
+    cmd: "/opt/IBM/WebSphere/wlp/bin/server status {{ websphere_server.name }}"
+  changed_when: false
+  ignore_errors: true
+  register: websphere_server_status
+  tags:
+    - installwas
+
+- name: Start WebSphere Server
+  become: true
+  command:
+    cmd: "nohup /opt/IBM/WebSphere/wlp/bin/server start {{ websphere_server.name }}"
+  when: '(websphere_server.name + " is not running") in websphere_server_status.stdout'
+  tags:
+    - installwas
+

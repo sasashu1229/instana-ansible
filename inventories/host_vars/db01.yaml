@@ -1,0 +1,43 @@
+---
+ansible_host: "{{ db01_public_ipaddress }}"
+ansible_user: "{{ db01_ansible_user }}"
+hostname: db01.demo.ibmcloud.com
+
+create_instances: true
+
+db2_instances:
+  - instance: "db2inst1"
+    name: "db2inst1"
+    port_number: 25010
+    group_name: "db2iadm1"
+    fenced_username: "db2fenc1"
+    fenced_group_name: "db2fadm1"
+    parent_home_directory: "/db2"
+    home_directory: "/db2/db2inst1"
+    fenced_home_directory: "/db2/db2fenc1"
+    uid: 2004
+    gid: 1999
+    fenced_uid: 2003
+    fenced_gid: 1998
+    dbm_params:
+      intra_parallel: "YES"
+      numdb: "15"
+
+sample_databases:
+  - instance: db2inst1
+    db_name: SAMPLE # not to be changed
+
+db2_binary:
+  location: "/tmp/db2_10503.tar.gz"
+  dest: "/tmp"
+
+db2_response_locations: "{{ db2_binary.dest }}/{{ db2_creates }}/db2server.rsp"
+
+ansible_agent_config_db2:
+  local:
+    - instance: 'db2inst1'
+      port: '25010'
+      user: 'db2inst1'
+      poll_rate: 5 # seconds
+      databases:
+      - 'sample'

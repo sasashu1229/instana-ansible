@@ -1,0 +1,80 @@
+---
+# This is an example playbook to execute Ansible tests.
+
+- name: Verify
+  hosts: all
+  gather_facts: false
+  tasks:
+  - ignore_errors: yes
+    become: yes
+    block:
+    - name: Include main variables
+      become: true
+      include_vars: ../../defaults/main.yml
+      
+    - name: Include OS-Specific variables
+      become: true
+      include_vars: ../../vars/RedHat.yml
+    
+    - name: Include database variables
+      become: true
+      include_vars: ../../../../inventories/host_vars/db01.yaml
+
+    - name: Include database variables
+      become: true
+      include_vars: ../../../../inventories/group_vars/password-encrypt.yaml
+
+    - name: Check existence of package
+      yum:
+        list: "{{ item }}"
+      register: result_packages
+      loop: "{{ db2_packages }}"
+
+    - name: check instance user
+      user: name={{ item.name }} password={{ lookup('vars', item.name + '_password') }} update_password=on_create state=present
+      register: result_instance_user
+      loop: "{{ db2_instances }}"
+
+    - name: check fenced user
+      user: name={{ item.fenced_username }} password={{ lookup('vars', item.fenced_username + '_password') }} update_password=on_create state=present
+      register: result_fenced_user
+      loop: "{{ db2_instances }}"
+
+    - name: DB2 - check connection sample databases
+      become: true
+      become_user: "{{ item.instance }}"
+      become_method: sudo
+      db2_check_connection:
+        db_name: "{{ item.db_name }}"
+        instance: "{{ item.instance }}"
+      register: result_sample_databases_connect
+      loop: "{{ sample_databases }}"
+
+    - name: DB2 - Validating the current installation
+      become: true
+      command: "{{ resp.file }}/bin/db2val -o"
+      register: result_db2_install
+
+    - name: DB2 - Check listen on port 25010
+      become: true
+      shell: netstat -ntpa | grep 25010
+      register: result_db2_listen_port
+
+  - name: Confirmation of result
+    assert:
+      that: "{{ result is not failed }}"
+    loop:
+    - "{{ result_packages }}"
+    - "{{ result_instance_user }}"
+    - "{{ result_fenced_user }}"
+    - "{{ result_sample_databases_connect }}"
+    - "{{ result_db2_install }}"
+    - "{{ result_db2_listen_port }}"
+    loop_control:
+      loop_var: result
+
+  - name: Confirmation of DB2 installation
+    assert:
+      that: "{{ 'DBI1335I' in result_db2_install.stdout }}"
+    
+    

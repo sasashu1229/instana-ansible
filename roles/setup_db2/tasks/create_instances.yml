@@ -1,0 +1,13 @@
+---
+- name: Check db2 instance directory
+  become: true
+  stat:
+    path: "{{ item.home_directory }}/sqllib"
+  register: instance_dir
+
+- name: Execute create db2 instance command
+  command: /opt/ibm/db2/V11.5/instance/db2icrt -u {{ item.fenced_username }} {{ item.name }}
+  become: true
+  register: db2icrt_result
+  failed_when: "db2icrt_result is failed and 'DBI1264E' not in db2icrt_result.stdout" # TODO 条件見直し必要
+  when: instance_dir.stat.exists == false

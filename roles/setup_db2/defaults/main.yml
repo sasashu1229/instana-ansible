@@ -1,0 +1,37 @@
+---
+# defaults file for setup_db2
+# On most DB2 compressed binary the tar.gz creates a file named server, but if your compressed file doesn't, change this variable to the name of the folder that it creates.
+db2_creates: server_dec
+db2_license_creates: std_vpc
+db2_license_filename: db2std_vpc.lic
+
+# set repository if needed
+# yum_repo: http://public-yum.oracle.com/public-yum-ol7.repo
+
+# SELinux - Disabling or Put in permissive mode, logging actions that would be blocked.
+db2_selinux_state: "permissive"
+
+# Response file keywords: https://www.ibm.com/docs/en/db2/11.5?topic=file-response-keywords
+resp:
+  prod: "DB2_SERVER_EDITION"
+  file: "/opt/ibm/db2/V11.5"
+  lic_agreement: "ACCEPT" # ACCEPT or DECLINE
+  install_type: "TYPICAL" # TYPICAL, COMPACT, CUSTOM
+  install_tsamp: "NO"
+
+# location for DB2 response file
+db2_response_locations: "/tmp/db2server.rsp"
+
+# This controls if the role should cache yum/apt
+make_cache: no
+
+# Create the instances listed in 'db2_instances' variable.
+# This can be set to false for installation without any instance.
+create_instances: false
+
+# Removing DB2 Community License
+db2_license_remove_community: true
+db2_community_product_identifier: "db2dec"
+
+# DEBUG mode flag
+#is_debug: true

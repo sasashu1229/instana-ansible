@@ -1,0 +1,25 @@
+---
+ansible_host: "{{ monitor01_public_ipaddress }}"
+instana_table_dics:
+  alerting_integrations: 'id, tenant_unit_id, jsonb_pretty(data) AS data, version'
+  apdex_configurations: 'id, tenant_unit_id, apdex_name, created_at, entity_type, entity_id, jsonb_pretty(apdex_entity) AS apdex_entity'
+  application_alert_config: 'id, tenant_unit_id, application_id, created, deleted, enabled, jsonb_pretty(data) AS data, jsonb_pretty(change_data) AS change_data'
+  application_config: 'id, tenant_unit_id, version, jsonb_pretty(data) AS data, default_config, deleted, created_at, created_by_user_id, created_by_api_token'
+  application_config_access_rules: '*'
+  custom_dashboard_access_rules: '*'
+  custom_dashboards: 'id, tenant_unit_id, version, title, jsonb_pretty(data) AS data'
+  custom_event_specifications: '*'
+  custom_payload_configurations: 'tenant_unit_id, jsonb_pretty(data) AS data, version'
+  global_application_alert_config: 'tenant_unit_id, id, application_ids, created, deleted, enabled, jsonb_pretty(data) AS data, built_in, jsonb_pretty(change_data) AS change_data'
+  legacy_alert_config: 'id, tenant_unit_id, version, alert_config_id, jsonb_pretty(data) AS data'
+  log_config: 'id, tenant_unit_id, configuration, label, regex, jsonb_pretty(slots) AS slots, discard, priority, created_at, modified_at, observed_at'
+  logging_integrations: 'type, tenant_unit_id, version, jsonb_pretty(data) AS data'
+  maintenance_configs: 'id, tenant_unit_id, version, maintenance_config_id, jsonb_pretty(data) AS data'
+  mobile_apps: 'id, tenant_unit_id, version, name, jsonb_pretty(data) AS data'
+  websites: 'id, tenant_unit_id, version, name, jsonb_pretty(data) AS data'
+  website_alert_config: 'id, tenant_unit_id, website_id, created, deleted, enabled, jsonb_pretty(data) AS data, jsonb_pretty(change_data) AS change_data'
+
+instana_db_names: [
+  postgres,
+  cockroachdb,
+]

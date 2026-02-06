@@ -1,0 +1,48 @@
+---
+- name: Verify
+  hosts: all
+  gather_facts: false
+  tasks:
+  - ignore_errors: yes
+    become: yes
+    block:
+    - name: Check firewalld is running
+      command: firewall-cmd --state
+      register: result_firewalld_state
+      changed_when: false
+
+    - name: Check firewalld is enabled for automatic startup
+      command: systemctl is-enabled firewalld
+      register: result_firewalld_enabled
+      changed_when: false
+
+    - name: Get allow port list
+      command: firewall-cmd --list-ports --zone=public
+      register: allow_ports
+      changed_when: false
+
+    - name: Get allow service list
+      command: firewall-cmd --list-services --zone=public
+      register: allow_services
+      changed_when: false
+
+  - name: Confirmation of results
+    assert:
+      that: "{{ result.failed == false }}"
+    loop:
+    - "{{ result_firewalld_state }}"
+    - "{{ result_firewalld_enabled }}"
+    loop_control:
+      loop_var: result
+
+  - name: Confirmation of allow port
+    assert:
+      that: "{{ item in allow_ports.stdout }}"
+    loop: 
+      "{{ firewalld_allow_ports }}"
+
+  - name: Confirmation of allow service
+    assert:
+      that: "{{ item in allow_services.stdout }}"
+    loop: 
+      "{{ firewalld_allow_services }}"

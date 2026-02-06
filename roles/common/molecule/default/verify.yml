@@ -1,0 +1,41 @@
+---
+# This is an example playbook to execute Ansible tests.
+
+- name: Verify
+  hosts: all
+  gather_facts: true
+  tasks:
+  - ignore_errors: yes
+    become: yes
+    block:
+    - name: Check prompt.sh  is exists
+      file:
+        path: /etc/profile.d/prompt.sh
+      register: result_prompt
+
+    - name: Check existence of vim package
+      yum:
+        list: vim
+      register: result_vim
+
+    - name: Check existence of net-tools package
+      yum:
+        list: net-tools
+      register: result_nettools
+
+  - name: Confirmation of results
+    assert:
+      that: "{{ result.failed == false }}"
+    loop:
+    - "{{ result_prompt }}"
+    - "{{ result_vim }}"
+    - "{{ result_nettools }}"
+    loop_control:
+      loop_var: result
+
+  - debug:
+      msg: "{{ lookup('file', '/etc/hostname') }}"
+
+  - name: Confirmation of hostname
+    assert:
+      that: "{{ ansible_facts.nodename == hostname }}"

@@ -1,0 +1,7 @@
+firewalld_enabled: true
+firewalld_allow_ports:
+- 20510/tcp
+- 2223/tcp
+firewalld_allow_services:
+- ssh
+vnc_debug: false

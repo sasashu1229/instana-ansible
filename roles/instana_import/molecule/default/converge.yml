@@ -1,0 +1,7 @@
+---
+- name: Converge
+  hosts: all
+  tasks:
+    - name: "Include instana_demo.instana_import"
+      include_role:
+        name: "instana_demo.instana_import"

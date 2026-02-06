@@ -1,0 +1,11 @@
+---
+- name: Converge
+  hosts: all
+  tasks:
+    - name: Include vars
+      include_vars: "../../../../inventories/group_vars/password-encrypt.yaml"
+    - name: Include vars
+      include_vars: "../../../../inventories/host_vars/db01.yaml"
+    - name: "Include instana_demo.setup_db2"
+      include_role:
+        name: "instana_demo.setup_db2"

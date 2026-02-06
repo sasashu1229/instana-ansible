@@ -1,0 +1,21 @@
+---
+# not used anymore
+db2_packages_el7:
+ - pam
+ - pam-devel.i686
+ - libaio
+ - libstdc++-devel.i686
+ - libstdc++
+ - ksh
+ - unzip
+ - numactl
+ - libselinux-python
+
+# For rhel 8 : # https://www.ibm.com/docs/en/db2/11.5?topic=servers-linux
+db2_packages:
+ - libaio	
+ - libstdc++	
+ - ksh
+ - mksh
+ - libstdc++.so.6
+ - unzip

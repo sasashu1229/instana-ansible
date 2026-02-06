@@ -1,0 +1,14 @@
+web01_public_ipaddress: "18.236.148.189"
+web01_private_ipaddress: "172.31.30.106"
+web01_ansible_user: "ec2-user"
+web02_public_ipaddress: "16.148.49.4"
+web02_private_ipaddress: "172.31.18.17"
+web02_ansible_user: "ec2-user"
+db01_public_ipaddress: "100.23.127.17"
+db01_private_ipaddress: "172.31.26.136"
+db01_ansible_user: "ec2-user"
+monitor01_public_ipaddress: "23.53.3.136"
+env_name_color: 32
+time_color: 35
+hostname_color: 32
+current_path_color: 34

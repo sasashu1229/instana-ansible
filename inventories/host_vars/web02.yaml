@@ -1,0 +1,33 @@
+---
+ansible_host: "{{ web02_public_ipaddress }}"
+ansible_user: "{{ web02_ansible_user }}"
+hostname: web02.demo.ibmcloud.com
+websphere_server:
+  name: server2
+  db_connect: true
+  httpPort: 80
+  httpsPort: 443
+  jvm_options:
+    - "-Xmx4096m"
+  db:
+    port: 25010
+    host: "{{ db01_private_ipaddress }}"
+    username: db2inst1
+    agedTimeout: 30m
+    connectionTimeout: 10s
+    maxPoolSize: 80
+    minPoolSize: 5
+    currentLockTimeout: 30s
+  featureManagers:
+    - webProfile-8.0
+    - monitor-1.0
+  jar_command_path: /opt/IBM/WebSphere/wlp/java/java/bin/jar
+  env:
+    - "DISK_FULL_CHECK_DIRECTORY=/"
+    - "DISK_FULL_DUMMY_DIRECTORY=/tmp/instana-demo-dir/"
+    - "DISK_FULL_TARGET_RATIO=15"
+    - "DISK_FULL_DUMMY_FILE_PREFIX=-instana-demo-dummy"
+  apps:
+    - id: instana-demo-api
+      location: instana-demo-api.war
+      git_repo: "git@github.ibm.com:TechnologyGarage/ce-instana-alert-demo-api.git"

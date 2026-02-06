@@ -1,0 +1,7 @@
+---
+- name: Restart WebSphere
+  become: true
+  shell: |
+    /opt/IBM/WebSphere/wlp/bin/server stop "{{ websphere_server.name }}"
+    nohup /opt/IBM/WebSphere/wlp/bin/server start "{{ websphere_server.name }}"
+

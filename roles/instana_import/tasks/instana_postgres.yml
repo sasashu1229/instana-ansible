@@ -1,0 +1,37 @@
+---
+- name: Copy dump folder into container
+  become: true
+  command: docker cp dump instana-postgres:/tmp
+
+- name: Create postgres local node file system
+  become: true
+  community.docker.docker_container_exec:
+    container: instana-postgres
+    user: root
+    command: mkdir -p /mnt/data/extern/
+
+- name: Get old tenant_unit_id
+  become: true
+  community.docker.docker_container_exec:
+    container: instana-postgres
+    command: head -n 1 /tmp/dump/tenant_unit_id.txt
+  register: old_tenant_unit_id
+
+- name: Get new tenant_unit_id
+  become: true
+  community.docker.docker_container_exec:
+    container: instana-postgres
+    command: psql -U postgres -A tenantdb -c "select id from tenant_units;"
+  register: new_tenant_unit_id
+
+- name: Import dump file
+  include_tasks: import_postgres.yml
+  with_items:
+  - "{{ instana_table_dics.keys() }}"
+
+- name: Remove dump directory in container
+  become: true
+  community.docker.docker_container_exec:
+    container: instana-postgres
+    user: root
+    command: rm -rf /tmp/dump

@@ -1,0 +1,14 @@
+.python-version
+.vault.txt
+.vscode
+# venv
+ansible_env
+
+# binary file
+roles/setup_db2/files/*.tar.gz
+roles/install_was/files/*.zip
+
+# Files containing secrets
+roles/instana_import/files/backup/pattern-A-old.tar
+roles/instana_import/files/pattern-A.tar
+

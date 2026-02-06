@@ -1,0 +1,82 @@
+#!/usr/bin/python
+import os
+from os.path import expanduser
+
+class Database:
+
+    def __init__(self, module):
+        self.module = module
+
+    def instance_up(self):
+        cmd = ". %s; ps -ef | grep $DB2INSTANCE | grep db2sysc | grep -v grep | wc -l" % self.db2profile
+        rc, stdout, stderr = self.module.run_command(cmd, use_unsafe_shell=True)
+
+        if stderr:
+            self.module.fail_json(changed=False, msg='Could not validade if instance is up'
+                                  , stderr=stderr, rc=rc, stdout=stdout)
+
+        return '1' == stdout.strip()
+
+    def find_db2_profile(self):
+        user_home = self.find_db2_home()
+        return os.path.join(user_home, "sqllib/db2profile")
+
+    def find_db2_home(self):
+        home = expanduser("~")
+        return home
+
+    def parse_params(self):
+        self.db_name = self.module.params['db_name']
+        self.instance = self.module.params['instance']
+        self.db2profile = self.find_db2_profile()
+
+    def connect_to_database(self):
+        if not self.instance_up():
+            return -1, "AIOPS0001E instance down", "AIOPS0001E instance down"
+        else:
+            user_home = self.find_db2_home()
+            cmd = ". %s; db2 'connect to %s'" % (self.db2profile, self.db_name)
+            rc, stdout, stderr = self.module.run_command(cmd, use_unsafe_shell=True)
+            return rc, stdout, stderr
+
+    def disconnect_to_database(self):
+        if not self.instance_up():
+            return -1, "AIOPS0001E instance down", "AIOPS0001E instance down"
+        else:
+            user_home = self.find_db2_home()
+            cmd = ". %s; db2 terminate" % self.db2profile
+            rc, stdout, stderr = self.module.run_command(cmd, use_unsafe_shell=True)
+            return rc, stdout, stderr
+
+def main():
+    module = AnsibleModule(
+        argument_spec=dict(
+            db_name=dict(required=True, type='str'),
+            instance=dict(required=True, type='str'),
+        ),
+        supports_check_mode=False
+    )
+
+    db = Database(module)
+    db.parse_params()
+
+    # check connect to database
+    rc_connect, stdout_connect, stderr_connect = db.connect_to_database()
+
+    # disconnect to database
+    rc_disconnect, stdout_disconnect, stderr_disconnect = db.disconnect_to_database()
+    
+    if stderr_connect != '' or rc_connect != 0:
+        module.fail_json(changed=False, msg="Error, could not connect to the database",
+                         stderr=stderr_connect, rc=rc_connect, stdout=stdout_connect)
+    elif stderr_disconnect != '' or rc_disconnect != 0:
+        module.fail_json(changed=False, msg="Error, could not disconnect to the database",
+                         stderr=stderr_disconnect, rc=rc_disconnect, stdout=stdout_disconnect)
+    else:
+        module.exit_json(changed=True, msg="connect to %s success" % db.db_name, 
+                         stdout=stdout_connect + "..." + stderr_disconnect, 
+                         stderr=stderr_connect + "..." + stderr_disconnect)
+
+from ansible.module_utils.basic import *
+
+main()

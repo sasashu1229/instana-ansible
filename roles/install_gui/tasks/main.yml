@@ -1,0 +1,166 @@
+---
+- name: set default of systemctl
+  become: true
+  command:
+    cmd: "systemctl set-default graphical.target"
+    chdir: ~
+  tags:
+  - install_gui
+  when: not "'graphical.target' in systemctl_default.stdout"
+
+#- name: install tigervnc
+#  become: true
+#  dnf:
+#    name:
+#    - tigervnc-server
+#    - tigervnc-server-module
+#  tags:
+#  - install_gui
+
+- name: check vnc passwd
+  become: true
+  stat:
+    path: ~/.vnc/passwd
+  tags:
+  - install_gui
+  changed_when: false
+  ignore_errors: true
+  register: vnc_passwd_setting
+
+- block:
+  - name: Create .vnc directory
+    become: true
+    file:
+      mode: 0755
+      path: ~/.vnc
+      state: directory
+    tags:
+    - install_gui
+
+  - debug:
+      msg: "{{ vnc_passwd }}"
+    tags:
+    - install_gui
+
+#  - name: set vnc passwd
+#    become: true
+#    shell: |
+#      set -o pipefail
+#      (echo {{ vnc_passwd }}&&echo {{vnc_passwd}}&&echo n) | vncpasswd
+#    register: result5
+#    tags:
+#    - install_gui
+
+#  - debug:
+#      msg: "{{ result5 }}"
+#    tags:
+#    - install_gui
+
+#  when: not vnc_passwd_setting.stat.exists
+#  tags:
+#  - install_gui
+
+- name: Configure VNC password (only if not exists)
+  block:
+    - name: Verify vncpasswd exists
+      become: true
+      ansible.builtin.command: command -v vncpasswd
+      register: vncpasswd_path
+      changed_when: false
+
+    - name: Fail if vncpasswd is missing
+      ansible.builtin.fail:
+        msg: "vncpasswd not found. tigervnc-server install or repo configuration may be missing."
+      when: vncpasswd_path.rc != 0
+
+    - name: Ensure ~/.vnc directory exists
+      become: true
+      become_user: "{{ vnc_user | default('ec2-user') }}"
+      ansible.builtin.file:
+        path: "~/.vnc"
+        state: directory
+        mode: "0700"
+
+    - name: set vnc passwd
+      become: true
+      become_user: "{{ vnc_user | default('ec2-user') }}"
+      ansible.builtin.shell: |
+        set -euo pipefail
+        printf '%s\n%s\nn\n' "{{ vnc_passwd }}" "{{ vnc_passwd }}" | {{ vncpasswd_path.stdout }}
+      args:
+        executable: /bin/bash
+      register: result5
+      no_log: true
+
+    - name: debug result (optional)
+      ansible.builtin.debug:
+        var: result5
+      when: vnc_debug | default(false)
+
+  when: not vnc_passwd_setting.stat.exists
+  tags:
+    - install_gui
+
+- name: check locale
+  become: true
+  command:
+    cmd: "locale"
+    chdir: ~
+  tags:
+  - install_gui
+  changed_when: false
+  ignore_errors: true
+  register: locale_setting
+  check_mode: false
+
+- debug:
+    msg: "{{ locale_setting.stdout_lines[-1] }}"
+  tags:
+  - install_gui
+
+- block:
+  - set_fact:
+      system_settings_locale: en_US.UTF-8
+    become: true
+    tags:
+    - install_gui
+
+  - name: check if locale exists
+    become: true
+    shell: "locale -a | grep -i {{ system_settings_locale | regex_replace('-', '') | quote }}"
+    register: found_locale
+    changed_when: no
+    failed_when: no
+    tags:
+    - install_gui
+    
+  - name: create locale
+    become: true
+    command: "localedef -i {{ system_settings_locale | regex_replace('(.*)\\..*', '\\1') | quote }} -f {{ system_settings_locale | regex_replace('.*\\.(.*)', '\\1') | quote }} {{ system_settings_locale | quote }}"
+    when: found_locale.rc != 0
+    tags:
+    - install_gui
+
+- name : check vnc server
+  become: true
+  command:
+    cmd: vncserver -list
+    chdir: ~
+  tags:
+  - install_gui
+  changed_when: false
+  ignore_errors: true
+  register: vncserver_list
+  check_mode: false
+
+- name: create vnc server
+  become: true
+  shell: vncserver -geometry 2560x1600 :1
+  environment: 
+    LC_ALL: en_US.UTF-8
+  tags:
+  - install_gui
+  when: "'X DISPLAY #' in vncserver_list.stdout_lines[-1]"
+  ignore_errors: "{{ ansible_check_mode }}"
+
+

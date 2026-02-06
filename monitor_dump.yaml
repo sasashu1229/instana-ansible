@@ -1,0 +1,6 @@
+---
+- name: Dump Instana monitoring data
+  hosts: monitor
+  remote_user: root
+  roles:
+    - instana_dump

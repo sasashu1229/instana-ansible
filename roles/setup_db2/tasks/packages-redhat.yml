@@ -1,0 +1,37 @@
+---
+# - name: Installing OL Public repository
+#   get_url: 
+#     url: "{{yum_repo}}"
+#     dest: /etc/yum.repos.d/public-yum-release.repo
+#   tags: download
+#   when:
+#     - yum_repo is defined
+#     - is_debug is defined
+
+# - name: Installing EPEL repository
+#   yum:
+#     name: epel-release
+#     state: present
+#     update_cache: yes
+#     disable_gpg_check: yes
+#   tags: ['packages', 'setup']
+#   when:
+#     - is_debug is defined
+
+# - name: Install remi.repo
+#   dnf:
+#     name: 'https://rpms.remirepo.net/enterprise/remi-release-8.rpm'
+#     state: present
+#     disable_gpg_check: yes
+#   when:
+#     - is_debug is defined
+
+# どこで転けたか分かりやすくするようにloop処理
+- name: Installing DB2 pre requisites packages - RedHat
+  yum:
+    name: "{{ item }}"
+    state: present
+    update_cache: "{{ make_cache }}"
+    disable_gpg_check: yes
+  loop: "{{ db2_packages }}"
+  tags: ['packages', 'setup']

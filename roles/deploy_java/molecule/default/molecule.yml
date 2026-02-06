@@ -1,0 +1,49 @@
+---
+dependency:
+  name: galaxy
+driver:
+  name: vagrant
+  provider:
+    name: virtualbox
+platforms:
+  - name: instance-deploy-web
+    box: "generic/centos8"
+provisioner:
+  name: ansible
+  connection_options:
+    websphere_server:
+      name: web01
+      db_connect: true
+      httpPort: 80
+      httpsPort: 443
+      jvm_options:
+      - "-Xmx4096m"
+      db:
+        port: 25010
+        host: 10.36.166.177
+        username: db2inst1
+        agedTimeout: 30m
+        connectionTimeout: 10s
+        maxPoolSize: 80
+        minPoolSize: 5
+        currentLockTimeout: 30s
+      featureManagers:
+      - webProfile-8.0
+      - monitor-1.0
+      - servlet-3.1
+      - json-1.0
+      - jsp-2.3
+      jar_command_path: /opt/IBM/WebSphere/wlp/java/java/bin/jar
+      env:
+      - "DISK_FULL_CHECK_DIRECTORY=/"
+      - "DISK_FULL_DUMMY_DIRECTORY=/tmp/instana-demo-dir/"
+      - "DISK_FULL_TARGET_RATIO=15"
+      - "DISK_FULL_DUMMY_FILE_PREFIX=-instana-demo-dummy"
+      - "DISK_FULL_BYTE_FILE_SIZE=21846"
+      - "MEMORY_LEAK_BYTE_SIZE=17000"
+      apps:
+      - id: instana-demo-api
+        location: instana-demo-api.war
+        git_repo: "git@github.ibm.com:TechnologyGarage/ce-instana-alert-demo-api.git"
+verifier:
+  name: ansible

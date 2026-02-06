@@ -1,0 +1,42 @@
+---
+- name: firewalld setting
+  block:
+    - name: Enabled firewalld
+      become: true
+      service:
+        name: firewalld
+        state: started
+        enabled: yes
+      tags:
+      - firewalld
+
+    - name: Set allow ports
+      become: true
+      firewalld:
+        port: "{{ item }}"
+        zone: public
+        permanent: yes
+        immediate: yes
+        state: enabled
+      loop: 
+        "{{ firewalld_allow_ports }}"
+      tags:
+      - firewalld
+      ignore_errors: "{{ ansible_check_mode }}"
+
+    - name: Set allow services
+      become: true
+      firewalld:
+        service: "{{ item }}"
+        zone: public
+        permanent: yes
+        immediate: yes
+        state: enabled
+      loop: 
+        "{{ firewalld_allow_services }}"
+      tags:
+      - firewalld
+      ignore_errors: "{{ ansible_check_mode }}"
+
+  when: firewalld_enabled
+

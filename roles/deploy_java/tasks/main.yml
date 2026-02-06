@@ -1,0 +1,56 @@
+---
+- name: Install packages required for deploy
+  become: true
+  yum:
+    name:
+    - git
+    - maven
+    state: present
+  tags:
+  - deploy
+
+- name: Create .ssh directory
+  become: true
+  file:
+    path: /root/.ssh
+    state: directory
+    owner: root
+    group: root
+    mode: '0700'
+  tags:
+  - deploy
+
+- block:
+    - name: Create jar file placement directory
+      become: true
+      file:
+        path: /var/lib/java
+        state: directory
+        owner: root
+        group: root
+        mode: 0755
+      tags:
+      - deploy
+
+    - name: Copy jar file
+      become: true
+      copy:
+        src: db2jcc4.jar
+        dest: /var/lib/java/db2jcc4.jar
+        owner: root
+        group: root
+        mode: 0644
+      tags:
+      - deploy
+      ignore_errors: "{{ ansible_check_mode }}"
+      
+  when: websphere_server.db_connect
+
+- name: Include deploy task
+  include_tasks: deploy.yaml
+  vars:
+    app: "{{ item }}"
+  loop: "{{ websphere_server.apps }}"
+  tags:
+  - deploy
+

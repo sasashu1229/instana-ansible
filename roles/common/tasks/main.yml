@@ -1,0 +1,42 @@
+---
+- name: Set a hostname
+  become: true
+  hostname: 
+    name: "{{ hostname }}"
+  tags:
+  - common
+
+- name: Set hostname file
+  become: true
+  template:
+    src: hostname.j2
+    dest: /etc/hostname
+    mode: 0644
+    owner: root
+    group: root
+  tags:
+  - common
+
+- name: Set profile script
+  become: true
+  template:
+    src: prompt.sh.j2
+    dest: /etc/profile.d/prompt.sh
+    mode: 0644
+    owner: root
+    group: root
+  tags:
+  - common
+
+- name: Install of various software
+  become: true
+  ansible.builtin.package:
+    name:
+      - vim
+      - net-tools
+      - glibc-locale-source
+      - glibc-langpack-en
+    state: present
+  tags:
+    - common
+

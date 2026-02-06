@@ -1,0 +1,27 @@
+- name: "Process {{ item }}.csv to import"
+  become: true
+  community.docker.docker_container_exec:
+    container: instana-cockroachdb
+    argv:
+    - /bin/sh
+    - "-c"
+    - sed '1d' "/tmp/cockroachdb_dump/{{ item }}.csv" | sed -e "s/{{ old_tenant_unit_id.stdout }}/{{ new_tenant_unit_id.stdout_lines[1] }}/g" | sed -e 's/\\\\\"/\\\"/g' > "/mnt/data/extern/{{ item }}.csv"
+
+- name: "Truncate table {{ item }}"
+  become: true
+  community.docker.docker_container_exec:
+    container: instana-cockroachdb
+    command: /opt/instana/cockroachdb/cockroach sql --insecure -d tenantdb -e "TRUNCATE {{ item }} CASCADE;"
+
+- name: "Get csv header line of {{ item }}.csv"
+  become: true
+  community.docker.docker_container_exec:
+    container: instana-cockroachdb
+    command: "head -n 1 /tmp/cockroachdb_dump/{{ item }}.csv"
+  register: columns
+
+- name: "Import dump file into table {{ item }}"
+  become: true
+  community.docker.docker_container_exec:
+    container: instana-cockroachdb
+    command: /opt/instana/cockroachdb/cockroach sql --insecure -d tenantdb -e "IMPORT INTO {{ item }} ({{ columns.stdout }}) CSV DATA ('nodelocal://1/{{ item }}.csv');"

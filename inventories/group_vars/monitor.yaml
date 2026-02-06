@@ -1,0 +1,2 @@
+firewalld_enabled: false
+import_pattern: A

@@ -1,0 +1,38 @@
+---
+#Download a DB2 License copy from a custom URL (Could be a http, an ftp whatever.)
+- name: License DB2 | Check if license is added
+  shell: "{{ resp.file }}/adm/db2licm -l | grep Expiry"
+  register: db2license_expiry
+  changed_when: false
+  failed_when: false
+
+- name: License DB2 | Check if license type is Community
+  shell: "{{ resp.file }}/adm/db2licm -l | grep Community"
+  register: db2license_community
+  changed_when: false
+  failed_when: false
+
+- block:
+  - name: License DB2 | Downloading DB2 license file
+    get_url:
+      url: "{{ db2_license_binary.url }}"
+      dest: "{{ db2_license_binary.location }}"
+    when: db2_binary.url is defined
+
+  - name: License DB2 | Decompressing DB2 license file
+    unarchive:
+      src: "{{ db2_license_binary.location }}"
+      dest: "{{ db2_license_binary.dest }}"
+      creates: "{{ db2_license_binary.dest }}/{{ db2_license_creates }}"
+      remote_src: yes
+
+  - name: License DB2 | Add DB2 license #todo check that awse_o is the standard
+    command: '"{{ resp.file }}/adm/db2licm" -a "{{ db2_license_binary.dest }}/{{ db2_license_creates }}/db2/license/{{ db2_license_filename }}"'
+    register: db2_license_add
+  when:
+    - "'Permanent' not in db2license_expiry.stdout or 'Community' in db2license_community.stdout"
+
+- name: License DB2 | Remove Community DB2 license
+  command: '"{{ resp.file }}/adm/db2licm" -r "{{ db2_community_product_identifier }}"'
+  register: db2_license_remove
+  when: "db2_license_remove_community | bool and 'Community' in db2license_community.stdout"

@@ -1,0 +1,76 @@
+---
+- name: Set private key for git
+  become: true
+  template:
+    src: private.key.j2
+    dest: "/root/.ssh/{{ app.id }}.key"
+    owner: root
+    group: root
+    mode: 0600
+  tags:
+  - deploy
+
+- name: Clone git repository for front web
+  become: true
+  git:
+    repo: "{{ app.git_repo }}"
+    dest: "/root/{{ app.id }}"
+    accept_hostkey: true
+    key_file: "/root/.ssh/{{ app.id }}.key"
+  register: app_git
+  tags:
+  - deploy
+  ignore_errors: "{{ ansible_check_mode }}"
+
+- name: Build Application
+  become: true
+  command:
+    cmd: "mvn clean install"
+    chdir: "/root/{{ app.id }}"
+  when: app_git.changed
+  tags:
+  - deploy
+
+- name: Check war file isexist
+  become: true
+  stat:
+    path: /opt/IBM/WebSphere/wlp/usr/servers/{{ websphere_server.name }}/dropins/{{ app.location }}
+  register: app_file
+  tags:
+  - deploy
+
+- name: Check of differences in application
+  become: true
+  shell: |
+    rm -rf /tmp/{git,existing} > /dev/null 2>&1
+    mkdir -p /tmp/{git,existing} > /dev/null 2>&1
+    cp /root/{{ app.id }}/target/{{ app.location }} /tmp/git/{{ app.location }} > /dev/null 2>&1
+    cp /opt/IBM/WebSphere/wlp/usr/servers/{{ websphere_server.name }}/dropins/{{ app.location }} /tmp/existing/{{ app.location }} > /dev/null 2>&1
+    cd /tmp/git/ > /dev/null 2>&1
+    {{ websphere_server.jar_command_path }} xvf {{ app.location }} > /dev/null 2>&1
+    cd /tmp/existing/ > /dev/null 2>&1
+    {{ websphere_server.jar_command_path }} xvf {{ app.location }} > /dev/null 2>&1
+    cd /tmp/ > /dev/null 2>&1
+    rm -rf /tmp/{git,existing}/{{ app.location }} > /dev/null 2>&1
+    diff -qr ./git ./existing
+  changed_when: false
+  ignore_errors: true
+  register: app_diff
+  when: app_file.stat.exists
+  tags:
+  - deploy
+
+- name: Copy build file
+  become: true
+  command:
+    cmd: "cp -f /root/{{ app.id }}/target/{{ app.location }} /opt/IBM/WebSphere/wlp/usr/servers/{{ websphere_server.name }}/{{ dir }}/{{ app.location }}"
+  with_items:
+  - dropins
+  - apps
+  loop_control:
+    loop_var: "dir"
+  notify: Restart WebSphere
+  when: not app_file.stat.exists or (app_diff is defined and (app_diff.stdout_lines|length>0))
+  tags:
+  - deploy
+

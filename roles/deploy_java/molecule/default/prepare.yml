@@ -1,0 +1,13 @@
+---
+- name: Prepare
+  hosts: all
+  gather_facts: false
+  tasks:
+  - name: Include vars
+    include_vars: "../../../../inventories/group_vars/password-encrypt.yaml"
+  - name: Install WebSphere
+    include_role:
+      name: install_was
+  - name: Setup server.xml
+    include_role:
+      name: update_was_config

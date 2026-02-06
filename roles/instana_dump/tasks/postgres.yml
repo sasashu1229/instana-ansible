@@ -1,0 +1,57 @@
+---
+- name: Create dump directory
+  community.docker.docker_container_exec:
+    container: instana-postgres
+    user: root
+    command: mkdir -p /tmp/dump
+
+- name: Get tenant_unit_id
+  community.docker.docker_container_exec:
+    container: instana-postgres
+    command: psql -U postgres -A tenantdb -c "select id from tenant_units;"
+  register: tenant_unit_id
+
+- name: Create tenant_unit_id text file
+  community.docker.docker_container_exec:
+    container: instana-postgres
+    user: root
+    argv:
+      - /bin/sh
+      - "-c"
+      - "echo {{ tenant_unit_id.stdout_lines[1] }} > /tmp/dump/tenant_unit_id.txt"
+
+- name: Export postgres tables into csv
+  community.docker.docker_container_exec:
+    container: instana-postgres
+    user: root
+    argv:
+    - /bin/sh
+    - "-c"
+    - psql -U postgres tenantdb -c "COPY (SELECT {{ item.columns }} FROM {{ item.table }}) TO STDOUT with csv delimiter ',' HEADER;" > /tmp/dump/{{ item.table }}.csv
+  with_items:
+  - { table: alerting_integrations, columns: 'id, tenant_unit_id, jsonb_pretty(data) AS data, version' }
+  - { table: apdex_configurations, columns: 'id, tenant_unit_id, apdex_name, created_at, entity_type, entity_id, jsonb_pretty(apdex_entity) AS apdex_entity' }
+  - { table: application_alert_config, columns: 'id, tenant_unit_id, application_id, created, deleted, enabled, jsonb_pretty(data) AS data, jsonb_pretty(change_data) AS change_data' }
+  - { table: application_config, columns: 'id, tenant_unit_id, version, jsonb_pretty(data) AS data, default_config, deleted, created_at, created_by_user_id, created_by_api_token' }
+  - { table: application_config_access_rules, columns: '*' }
+  - { table: custom_dashboard_access_rules, columns: '*' }
+  - { table: custom_dashboards, columns: 'id, tenant_unit_id, version, title, jsonb_pretty(data) AS data' }
+  - { table: custom_event_specifications, columns: '*' }
+  - { table: custom_payload_configurations, columns: 'tenant_unit_id, jsonb_pretty(data) AS data, version' }
+  - { table: global_application_alert_config, columns: 'tenant_unit_id, id, application_ids, created, deleted, enabled, jsonb_pretty(data) AS data, built_in, jsonb_pretty(change_data) AS change_data' }
+  - { table: legacy_alert_config, columns: 'id, tenant_unit_id, version, alert_config_id, jsonb_pretty(data) AS data' }
+  - { table: log_config, columns: 'id, tenant_unit_id, configuration, label, regex, jsonb_pretty(slots) AS slots, discard, priority, created_at, modified_at, observed_at' }
+  - { table: logging_integrations, columns: 'type, tenant_unit_id, version, jsonb_pretty(data) AS data' }
+  - { table: maintenance_configs, columns: 'id, tenant_unit_id, version, maintenance_config_id, jsonb_pretty(data) AS data' }
+  - { table: mobile_apps, columns: 'id, tenant_unit_id, version, name, jsonb_pretty(data) AS data' }
+  - { table: websites, columns: 'id, tenant_unit_id, version, name, jsonb_pretty(data) AS data' }
+  - { table: website_alert_config, columns: 'id, tenant_unit_id, website_id, created, deleted, enabled, jsonb_pretty(data) AS data, jsonb_pretty(change_data) AS change_data' }
+
+- name: Copy compressed file from container to host
+  command: docker cp instana-postgres:/tmp/dump /tmp/
+
+- name: Remove dump directory in container
+  community.docker.docker_container_exec:
+    container: instana-postgres
+    user: root
+    command: rm -rf /tmp/dump

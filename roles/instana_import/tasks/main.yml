@@ -1,0 +1,39 @@
+---
+- name: Copy dump file into /tmp
+  become: true
+  ansible.builtin.copy:
+    src: "pattern-{{ import_pattern }}.tar"
+    dest: /tmp/dump.tar
+    mode: '0644'
+
+- name: Extract dump.tar into /tmp
+  become: true
+  ansible.builtin.unarchive:
+    src: /tmp/dump.tar
+    dest: /tmp
+    remote_src: true
+
+- name: Get All Container Names
+  become: true
+  ansible.builtin.command: docker ps --format '{{.Names}}'
+  register: container_names
+  changed_when: false
+
+- name: Check DB Container Exist
+  when: ('instana-' + dbname) in container_names.stdout_lines
+  ansible.builtin.include_tasks: "instana_{{ dbname }}.yml"
+  loop: "{{ instana_db_names }}"
+  loop_control:
+    loop_var: dbname
+
+- name: Remove /tmp/dump folder
+  become: true
+  ansible.builtin.file:
+    path: /tmp/dump
+    state: absent
+
+- name: Remove dump file
+  become: true
+  ansible.builtin.file:
+    path: /tmp/dump.tar
+    state: absent

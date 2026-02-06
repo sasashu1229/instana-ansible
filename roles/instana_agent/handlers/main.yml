@@ -1,0 +1,8 @@
+---
+# handlers file for instana_agent
+- name: Restart Instana Agent
+  become: true
+  service:
+    name: instana-agent
+    state: restarted
+  ignore_errors: "{{ ansible_check_mode }}"

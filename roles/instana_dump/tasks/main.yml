@@ -1,0 +1,35 @@
+---
+- name: Get All Container Names
+  become: true
+  command: docker ps --format \{\{.Names\}\}
+  register: container_names
+
+- name: Postgres setting
+  when: '"instana-postgres" in container_names.stdout_lines'
+  include_tasks: postgres.yml
+
+- name: cockroachdb setting
+  when: '"instana-cockroachdb" in container_names.stdout_lines'
+  debug:
+    msg: "cockroach find!"
+
+- name: Compress directory where postgres dump csv files exist
+  become: true
+  command:
+    chdir: /tmp
+    cmd: tar -cf dump.tar dump
+
+- name: Remove dump folder
+  file:
+    path: /tmp/dump
+    state: absent
+
+- name: Copy dump file from remote to local
+  fetch:
+    src: /tmp/dump.tar
+    dest: "{{ DUMP_FILE_DEST }}"
+
+- name: Remove dump file
+  file:
+    path: /tmp/dump.tar
+    state: absent

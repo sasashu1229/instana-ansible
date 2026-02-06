@@ -1,0 +1,9 @@
+---
+- hosts: db
+  vars_files:
+    - inventories/group_vars/password-encrypt.yaml
+  roles:
+    - common
+    # - install_gui
+    - setup_db2
+

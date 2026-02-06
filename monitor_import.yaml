@@ -1,0 +1,6 @@
+---
+- name: Import Instana monitoring data
+  hosts: monitor
+  remote_user: root
+  roles:
+    - instana_import

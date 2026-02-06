@@ -1,0 +1,7 @@
+---
+- hosts: instana-agent
+  vars_files:
+    - inventories/group_vars/password-encrypt.yaml
+  roles:
+    - instana_agent
+

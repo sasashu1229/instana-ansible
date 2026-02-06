@@ -1,0 +1,19 @@
+---
+- name: Create Sample Database
+  db2_create_sample_database:
+    db_name: "{{ item.db_name }}"
+    instance: "{{ item.instance }}"
+  register: db_debug
+  become: true
+  become_user: "{{ item.instance }}"
+  become_method: sudo
+  vars: #Pipelining it's great but doesn't work with sudo
+    ansible_pipelining: False
+  ignore_errors: true
+
+- name: Create Database Log
+  become: true
+  debug:
+    var: db_debug
+  when: db_debug is defined and db_debug is changed
+  changed_when: false

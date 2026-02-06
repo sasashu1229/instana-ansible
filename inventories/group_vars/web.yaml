@@ -1,0 +1,10 @@
+firewalld_enabled: true
+firewalld_allow_ports:
+- 9080/tcp
+- 9443/tcp
+- 2223/tcp
+firewalld_allow_services:
+- ssh
+- http
+- https
+- vnc-server

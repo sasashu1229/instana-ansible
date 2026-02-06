@@ -1,0 +1,43 @@
+---
+ansible_host: "{{ web01_public_ipaddress }}"
+ansible_user: "{{ web01_ansible_user }}"
+hostname: web01.demo.ibmcloud.com
+websphere_server:
+  name: server1
+  db_connect: false
+  httpPort: 80
+  httpsPort: 443
+  jvm_options:
+    - "-Xmx4096m"
+  featureManagers:
+    - webProfile-8.0
+    - monitor-1.0
+    - servlet-3.1
+    - json-1.0
+    - jsp-2.3
+  jar_command_path: /opt/IBM/WebSphere/wlp/java/java/bin/jar
+  env:
+    - "{{ 'API_HOST=' + web02_private_ipaddress }}"
+    - "{{ 'PUBLIC_API_HOST=' + web02_public_ipaddress }}"
+    - "DISK_FULL_CHECK_DIRECTORY=/"
+    - "DISK_FULL_DUMMY_DIRECTORY=/tmp/instana-demo-dir/"
+    - "DISK_FULL_TARGET_RATIO=15"
+    - "DISK_FULL_DUMMY_FILE_PREFIX=-instana-demo-dummy"
+    - "DISK_FULL_BYTE_FILE_SIZE=21846"
+    - "MEMORY_LEAK_BYTE_SIZE=17000"
+    - "{{ 'IP_ADDR_PORT_WEB=' + web01_public_ipaddress + ':80' }}"
+    - "{{ 'IP_ADDR_PORT_API=' + web02_public_ipaddress + ':80' }}"
+    - "{{ 'IP_ADDR_PORT_INSTANA=' + monitor01_public_ipaddress + ':443' }}"
+  apps:
+    - id: instana-demo-web
+      location: instana-demo-web.war
+      git_repo: "git@github.ibm.com:TechnologyGarage/ce-instana-alert-demo-web.git"
+ansible_agent_config_ping:
+  endpoints:
+    WEB01:
+      type: 'icmp' 
+      target: '{{ ansible_host }}'
+    APP01:
+      type: 'http' 
+      target: 'http://{{ ansible_host }}:{{ websphere_server.httpPort }}/instana-demo-web/function'
+      

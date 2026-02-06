@@ -1,0 +1,37 @@
+---
+- name: Prepare Repository
+  become: true
+  template:
+    src: Instana-Agent.repo.j2
+    dest: /etc/yum.repos.d/Instana-Agent.repo
+    owner: root
+    group: root
+    mode: 0640
+
+- name: Install Instana Agent
+  become: true
+  yum:
+    name: instana-agent-{{ instana.agent.package_type }}
+  environment:
+    INSTANA_AGENT_KEY: "{{ instana.agent.install_environment._INSTANA_AGENT_KEY }}"
+    INSTANA_AGENT_HOST: "{{ instana.agent.install_environment._HOST }}"
+    INSTANA_AGENT_PORT: "{{ instana.agent.install_environment._PORT }}"
+  ignore_errors: "{{ ansible_check_mode }}"
+
+- name: Generate Instana Agent Override Configuration
+  become: true
+  template:
+    src: configuration.yaml.j2
+    dest: /opt/instana/agent/etc/instana/configuration.yaml
+    owner: root
+    group: root
+    mode: 0640
+  notify: Restart Instana Agent
+
+- name: Configure Service Autostart
+  become: true
+  service:
+    name: instana-agent
+    enabled: "{{ instana.agent.enable }}"
+  ignore_errors: "{{ ansible_check_mode }}"
+

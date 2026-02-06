@@ -1,0 +1,11 @@
+[Unit]
+Description=was daemon
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/opt/IBM/WebSphere/wlp/bin/server start {{ websphere_server.name }}
+ExecStop=/opt/IBM/WebSphere/wlp/bin/server stop {{ websphere_server.name }}
+
+[Install]
+WantedBy=multi-user.target

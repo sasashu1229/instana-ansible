@@ -1,0 +1,96 @@
+#!/usr/bin/python
+import os
+from os.path import expanduser
+
+class Database:
+
+    def __init__(self, module):
+        self.module = module
+
+
+    def start_instance(self):
+        if not self.instance_up():
+            # The start the instance first
+            cmd = ". %s; db2start" % self.db2profile
+            rc, stdout, stderr = self.module.run_command(cmd, use_unsafe_shell=True)
+            if stderr != '' or rc!=0:
+                self.module.fail_json(changed=False, msg="Error, could not startup the database",
+                                      stderr=stderr, rc=rc, stdout=stdout)
+
+
+    def instance_up(self):
+        cmd = ". %s; ps -ef | grep $DB2INSTANCE | grep db2sysc | grep -v grep | wc -l" % self.db2profile
+        rc, stdout, stderr = self.module.run_command(cmd, use_unsafe_shell=True)
+
+        if stderr:
+            self.module.fail_json(changed=False, msg='Could not validade if instance is up'
+                                  , stderr=stderr, rc=rc, stdout=stdout)
+
+        return '1' == stdout.strip()
+
+    def is_db_already_created(self):
+        cmd = ". %s; db2 list db directory | grep \"Database name\" | awk '{print $4}'" % self.db2profile
+        rc, stdout, stderr = self.module.run_command(cmd, use_unsafe_shell=True)
+
+        if stderr:
+            self.module.fail_json(changed=False, msg=stderr)
+        
+        for db in stdout.strip().split('\n'):
+            if db == self.db_name.upper():
+                return True
+        return False
+
+    def find_db2_profile(self):
+        user_home = self.find_db2_home()
+        return os.path.join(user_home, "sqllib/db2profile")
+
+
+    def find_db2_home(self):
+        home = expanduser("~")
+        return home
+
+    def parse_params(self):
+        self.db_name = self.module.params['db_name']
+        self.instance = self.module.params['instance']
+        self.db2profile = self.find_db2_profile()
+
+    def create_sample_database(self):
+        if not self.instance_up():
+            return -1, "AIOPS0001E instance down", "AIOPS0001E instance down"
+        else:
+            user_home = self.find_db2_home()
+            cmd = ". %s; db2sampl" % self.db2profile
+            rc, stdout, stderr = self.module.run_command(cmd, use_unsafe_shell=True)
+            return rc, stdout, stderr
+
+def main():
+    module = AnsibleModule(
+        argument_spec=dict(
+            db_name=dict(required=True, type='str'),
+            instance=dict(required=True, type='str'),
+        ),
+        supports_check_mode=False
+    )
+
+    db = Database(module)
+    db.parse_params()
+
+    # Only if the instance is down
+    db.start_instance()
+
+    if db.is_db_already_created():
+        # TODO 作り込むならerror code定義見直し
+        module.exit_json(changed=False, msg="Database %s already created, moving on!" % db.db_name,
+                         stderr="", rc=0, stdout="AIOPS0001W")
+
+    # create sample database
+    rc_sample_db, stdout_sample_db, stderr_sample_db = db.create_sample_database()
+    if stderr_sample_db != '' or rc_sample_db != 0:
+        module.fail_json(changed=False, msg="Error, could not startup the database",
+                         stderr=stderr_sample_db, rc=rc_sample_db, stdout=stdout_sample_db)
+    else:
+        module.exit_json(changed=True, msg="Database SAMPLE created", stdout=stdout_sample_db, stderr=stderr_sample_db)
+
+from ansible.module_utils.basic import *
+
+main()

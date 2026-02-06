@@ -1,0 +1,25 @@
+---
+# defaults file for instana_agent
+instana:
+  agent:
+    enable: yes # autostart enable
+    package_type: dynamic # static or dynamic
+    install_environment:
+      _INSTANA_AGENT_KEY: "{{ INSTANA_AGENT_KEY }}"
+      _HOST: "{{ HOST }}"
+      _PORT: "{{ PORT }}"
+
+# agent configuration, if key is not defined, set empty string
+instana_agent_config:
+  hardware:
+    enabled: true
+    availability_zone: 'Instana MVP'
+  db2: "{{ ansible_agent_config_db2 | default('') }}"
+  ping: "{{ ansible_agent_config_ping | default('') }}"
+
+# specify following variables when execute this role
+# HOST: 
+# PORT: 
+# INSTANA_AGENT_KEY: 
+
+

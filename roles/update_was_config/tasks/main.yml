@@ -1,0 +1,52 @@
+---
+- name: Set API Server.xml
+  become: true
+  template:
+    src: api.server.xml.j2
+    dest: /opt/IBM/WebSphere/wlp/usr/servers/{{ websphere_server.name }}/server.xml
+    mode: 0644
+    owner: root
+    group: root
+  tags:
+    - updatewasconfig
+  when: websphere_server.db_connect
+  notify: Restart WebSphere
+
+- name: Set Web Server.xml
+  become: true
+  template:
+    src: web.server.xml.j2
+    dest: /opt/IBM/WebSphere/wlp/usr/servers/{{ websphere_server.name }}/server.xml
+    mode: 0644
+    owner: root
+    group: root
+  tags:
+    - updatewasconfig
+  when: not websphere_server.db_connect
+  notify: Restart WebSphere
+
+- name: Set Web Server.env
+  become: true
+  lineinfile:
+    path: /opt/IBM/WebSphere/wlp/usr/servers/{{ websphere_server.name }}/server.env
+    insertbefore: EOF
+    line: "{{ item }}"
+  with_items:    
+    "{{ websphere_server.env }}"
+  notify: Restart WebSphere
+  tags:
+    - updatewasconfig
+  ignore_errors: "{{ ansible_check_mode }}"
+
+- name: Set JVM Options
+  become: true
+  template:
+    src: jvm.options.j2
+    dest: /opt/IBM/WebSphere/wlp/usr/servers/{{ websphere_server.name }}/jvm.options
+    mode: 0644
+    owner: root
+    group: root
+  tags:
+    - updatewasconfig
+  notify: Restart WebSphere
+

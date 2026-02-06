@@ -1,0 +1,28 @@
+---
+# This is an example playbook to execute Ansible tests.
+
+- name: Verify
+  hosts: all
+  gather_facts: false
+  tasks:
+    - ignore_errors: yes
+      become: yes
+      block:
+        - name: Check WebSphere is installed
+          file:
+            path: /opt/IBM/WebSphere/wlp
+          register: result_websphere_installed
+
+        - name: Check server is created
+          file:
+            path: /opt/IBM/WebSphere/wlp/usr/servers/{{ websphere_server.name }}/server.xml
+          register: result_websphere_server_created
+
+    - name: Confirmation of results
+      assert:
+        that: "{{ result.failed == false }}"
+      loop:
+        - "{{ result_websphere_installed }}"
+        - "{{ result_websphere_server_created }}"
+      loop_control:
+        loop_var: result

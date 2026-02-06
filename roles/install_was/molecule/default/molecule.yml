@@ -1,0 +1,19 @@
+---
+dependency:
+  name: galaxy
+driver:
+  name: vagrant
+  provider:
+    name: virtualbox
+platforms:
+  - name: instance-install-was
+    box: "generic/centos8"
+provisioner:
+  name: ansible
+  #env:
+  #  ANSIBLE_VERBOSITY: 3
+  connection_options:
+    websphere_server:
+      name: web02
+verifier:
+  name: ansible

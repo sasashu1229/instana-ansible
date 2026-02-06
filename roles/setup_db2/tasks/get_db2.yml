@@ -1,0 +1,31 @@
+---
+#Download a DB2 copy from a custom URL (Could be a http, an ftp whatever.)
+- name: check file
+  stat:
+    path: "{{ db2_binary.location }}"
+  register: chk_file
+
+- name: Downloading DB2
+  get_url:
+    url: "{{ db2_binary.url }}"
+    dest: "{{ db2_binary.location }}"
+  when: 
+    - db2_binary.url is defined
+    - chk_file.stat.exists == false
+
+- name: Copy DB2
+  copy:
+    src: ../files/v11.5.7_linuxx64_server_dec.tar.gz
+    dest:  "{{ db2_binary.location }}"
+    mode: 0644
+  when: 
+    - db2_binary.url is not defined
+    - chk_file.stat.exists == false
+
+- name: Decompressing DB2 Server
+  unarchive:
+    src: "{{ db2_binary.location }}"
+    dest: "{{ db2_binary.dest }}"
+    copy: no
+    creates: "{{ db2_binary.dest }}/{{ db2_creates }}"
+  ignore_errors: "{{ ansible_check_mode }}"

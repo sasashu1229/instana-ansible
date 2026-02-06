@@ -1,0 +1,40 @@
+---
+# This is an example playbook to execute Ansible tests.
+
+- name: Verify
+  hosts: all
+  gather_facts: false
+  tasks:
+    - ignore_errors: yes
+      become: yes
+      block:
+        - name: Read server.xml
+          shell: |
+            cat /opt/IBM/WebSphere/wlp/usr/servers/{{ websphere_server.name }}/server.xml
+          register: result_server_config
+
+        - name: Read server.env
+          shell: |
+            grep "{{ item }}" /opt/IBM/WebSphere/wlp/usr/servers/{{ websphere_server.name }}/server.env
+          loop:
+            "{{ websphere_server.env }}"
+          register: result_server_env
+        
+        - name: Read server.xml
+          shell: |
+            cat /opt/IBM/WebSphere/wlp/usr/servers/{{ websphere_server.name }}/jvm.options
+          register: result_jvm_options
+
+    - name: Check if server.xml is updated
+      assert:
+        that: "'{{ websphere_server.apps[0].id }}' in result_server_config.stdout"
+
+    - name: Check if server.env is updated
+      assert:
+        that: "'{{ item.stderr }}' == ''"
+      loop:
+        "{{ result_server_env.results }}"
+
+    - name: Check if JVM Options is updated
+      assert:
+        that: "'{{ websphere_server.jvm_options[0] }}' in result_jvm_options.stdout"

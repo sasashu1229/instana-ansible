@@ -1,0 +1,15 @@
+---
+- name: Preliminary check of db2 installation
+  become: true
+  shell: |
+    count=$(grep -v "db2c_{{ item.instance }}" /etc/services | grep "{{ item.port_number }}/tcp" | wc -l)
+    if [ $count -ne 0 ]; then
+      echo "Port number {{ item.port_number }} is used for other services." >&2
+      echo "Check the 'port_number' field in the 'inventories/host_vars/db01.yaml' file." >&2
+      /bin/false
+    else
+      /bin/true
+    fi 
+  check_mode: False
+  changed_when: False
+  tags: pre-check

@@ -1,0 +1,22 @@
+---
+dependency:
+  name: galaxy
+driver:
+  name: vagrant
+  provider: 
+    name: virtualbox
+platforms:
+  - name: instance-db2
+    box: "generic/centos8"
+    memory: 4096
+provisioner:
+  name: ansible
+  connection_options:
+    env_name_color: 32
+    time_color: 35
+    hostname_color: 32
+    current_path_color: 34
+    hostname: test.demo.ibmcloud.com
+    create_instances: true
+verifier:
+  name: ansible

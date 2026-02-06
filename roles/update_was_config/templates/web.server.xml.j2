@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<server description="new server">
+
+    <!-- Enable features -->
+    <featureManager>
+        {% for featureManager in websphere_server.featureManagers -%}
+        <feature>{{ featureManager }}</feature>
+        {% endfor %}
+    </featureManager>
+
+    <!-- To access this server from a remote client add a host attribute to the following element, e.g. host="*" -->
+    <httpEndpoint id="defaultHttpEndpoint"
+	          host="*"
+                  httpPort="{{ websphere_server.httpPort }}"
+		  httpsPort="{{ websphere_server.httpsPort }}" />
+
+    <!-- Automatically expand WAR files and EAR files -->
+    <applicationManager autoExpand="true"/>
+
+    {% for app in websphere_server.apps -%}
+    <webApplication id="{{app.id}}" location="{{app.location}}" name="{{app.id}}"/>
+    {% endfor %}
+</server>

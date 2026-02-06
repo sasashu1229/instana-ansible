@@ -1,0 +1,47 @@
+---
+dependency:
+  name: galaxy
+driver:
+  name: vagrant
+  provider:
+    name: virtualbox
+platforms:
+  - name: update-was-config-instance
+    box: "generic/centos8"
+provisioner:
+  name: ansible
+  connection_options:
+    hostname: web02.demo.ibmcloud.com
+    websphere_server:
+      name: web02
+      db_connect: true
+      httpPort: 80
+      httpsPort: 443
+      jvm_options:
+        - "-Xmx4096m"
+      db:
+        port: 25010
+        host: 10.36.166.192
+        username: db2inst1
+        agedTimeout: 30m
+        connectionTimeout: 10s
+        maxPoolSize: 80
+        minPoolSize: 5
+        currentLockTimeout: 30s
+      featureManagers:
+        - webProfile-8.0
+        - monitor-1.0
+      env:
+        - "API_HOST=10.36.166.155:9080"
+        - "PUBLIC_API_HOST=169.62.252.52:9080"
+        - "DISK_FULL_CHECK_DIRECTORY=/"
+        - "DISK_FULL_DUMMY_DIRECTORY=/tmp/instana-demo-dir/"
+        - "DISK_FULL_TARGET_RATIO=15"
+        - "DISK_FULL_DUMMY_FILE_PREFIX=-instana-demo-dummy"
+        - "DISK_FULL_BYTE_FILE_SIZE=21846"
+        - "MEMORY_LEAK_BYTE_SIZE=17000"
+      apps:
+        - id: instana-demo-api
+          location: instana-demo-api.war
+verifier:
+  name: ansible

@@ -1,0 +1,11 @@
+---
+- hosts: web
+  vars_files: 
+  - inventories/group_vars/password-encrypt.yaml
+  roles:
+  - common
+#  - install_gui
+  - install_was
+  - update_was_config
+  - deploy_java
+

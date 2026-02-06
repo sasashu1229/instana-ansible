@@ -1,0 +1,7 @@
+---
+- name: Reflect changed port number
+  become: true
+  shell: |
+    su - {{ item.item.name }} -c {{ item.item.home_directory }}/sqllib/adm/db2stop
+    su - {{ item.item.name }} -c {{ item.item.home_directory }}/sqllib/adm/db2start
+  when: item.changed
