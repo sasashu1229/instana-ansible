@@ -1,0 +1,45 @@
+# RPMパッケージファイル（バイナリファイルは除外）
+files/*.rpm
+files/*.tar.gz
+files/*.zip
+
+# Ansible関連の一時ファイル
+*.retry
+.ansible/
+ansible.log
+
+# Python関連
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+
+# 機密情報を含む可能性のあるファイル
+inventory.ini
+*_secret.yaml
+*_secrets.yaml
+vault_pass.txt
+.vault_pass
+
+# OS関連
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# エディタ関連
+.vscode/
+.idea/
+*.sublime-*
+
+# ログファイル
+*.log
+logs/
+
+# バックアップファイル
+*.bak
+*.backup

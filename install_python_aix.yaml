@@ -1,0 +1,108 @@
+---
+# AIX OS7.2へPython 3.9をインストールするAnsible Playbook
+# インターネット接続なし環境向け
+
+- name: Install Python 3.9 on AIX 7.2
+  hosts: aix_servers
+  gather_facts: yes
+  become: yes
+  
+  vars_files:
+    - vars/python_vars.yaml
+  
+  tasks:
+    - name: AIXバージョンの確認
+      shell: oslevel -s
+      register: aix_version
+      changed_when: false
+      
+    - name: AIXバージョンの表示
+      debug:
+        msg: "AIX Version: {{ aix_version.stdout }}"
+    
+    - name: RPMパッケージマネージャーの確認
+      shell: rpm --version
+      register: rpm_check
+      changed_when: false
+      failed_when: false
+      
+    - name: RPMが利用可能か確認
+      fail:
+        msg: "RPMパッケージマネージャーがインストールされていません"
+      when: rpm_check.rc != 0
+    
+    - name: 作業用一時ディレクトリの作成
+      file:
+        path: "{{ temp_dir }}"
+        state: directory
+        mode: '0755'
+    
+    - name: Python RPMパッケージのコピー
+      copy:
+        src: "{{ local_rpm_path }}/{{ python_rpm_file }}"
+        dest: "{{ temp_dir }}/{{ python_rpm_file }}"
+        mode: '0644'
+    
+    - name: 既存のPython 3.9インストール状況の確認
+      shell: rpm -qa | grep -i python3.9
+      register: python_installed
+      changed_when: false
+      failed_when: false
+    
+    - name: 既存インストール状況の表示
+      debug:
+        msg: "既存Python 3.9: {{ python_installed.stdout_lines if python_installed.stdout_lines else '未インストール' }}"
+    
+    - name: Python 3.9 RPMパッケージのインストール
+      shell: rpm -ivh {{ temp_dir }}/{{ python_rpm_file }}
+      args:
+        warn: false
+      register: rpm_install
+      when: python_installed.stdout == ""
+      
+    - name: Python 3.9 RPMパッケージのアップグレード（既にインストール済みの場合）
+      shell: rpm -Uvh {{ temp_dir }}/{{ python_rpm_file }}
+      args:
+        warn: false
+      register: rpm_upgrade
+      when: python_installed.stdout != ""
+    
+    - name: インストール結果の表示
+      debug:
+        msg: "{{ rpm_install.stdout_lines if rpm_install.changed else rpm_upgrade.stdout_lines if rpm_upgrade.changed else 'インストール済み' }}"
+    
+    - name: Pythonバージョンの確認
+      shell: python3.9 --version
+      register: python_version
+      changed_when: false
+      
+    - name: インストールされたPythonバージョンの表示
+      debug:
+        msg: "インストール完了: {{ python_version.stdout }}"
+    
+    - name: Python実行パスの確認
+      shell: which python3.9
+      register: python_path
+      changed_when: false
+      
+    - name: Python実行パスの表示
+      debug:
+        msg: "Python実行パス: {{ python_path.stdout }}"
+    
+    - name: 一時ファイルのクリーンアップ
+      file:
+        path: "{{ temp_dir }}/{{ python_rpm_file }}"
+        state: absent
+      when: cleanup_temp_files | bool
+    
+    - name: インストール完了メッセージ
+      debug:
+        msg: 
+          - "=========================================="
+          - "Python 3.9のインストールが完了しました"
+          - "AIXバージョン: {{ aix_version.stdout }}"
+          - "Pythonバージョン: {{ python_version.stdout }}"
+          - "実行パス: {{ python_path.stdout }}"
+          - "=========================================="
+
+# Made with Bob
