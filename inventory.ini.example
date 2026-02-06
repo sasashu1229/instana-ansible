@@ -1,8 +1,8 @@
 [managed-server]
 # ホスト名またはIPアドレスを記載してください
-# 例: user@hostname1
-# 例: user@192.168.1.100
-# ec2-user@ec2-16-146-46-154.us-west-2.compute.amazonaws.com
+# 例: hostname1
+# 例: 192.168.1.100
+# ec2-16-146-46-154.us-west-2.compute.amazonaws.com
 
 [managed-server:vars]
 ansible_user=ec2-user
