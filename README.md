@@ -72,8 +72,8 @@ instana_agent_java_path: /opt/instana/agent/jvm/bin/java
 
 ```ini
 [managed-server]
-user@hostname1
-user@hostname2
+hostname1 or IP
+hostname2 or IP
 
 [managed-server:vars]
 ansible_user=ec2-user
