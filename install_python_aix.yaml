@@ -55,24 +55,21 @@
     
     - name: Python 3.9 RPMパッケージのインストール
       shell: rpm -ivh {{ temp_dir }}/{{ python_rpm_file }}
-      args:
-        warn: false
       register: rpm_install
       when: python_installed.stdout == ""
       
     - name: Python 3.9 RPMパッケージのアップグレード（既にインストール済みの場合）
       shell: rpm -Uvh {{ temp_dir }}/{{ python_rpm_file }}
-      args:
-        warn: false
       register: rpm_upgrade
       when: python_installed.stdout != ""
+      failed_when: rpm_upgrade.rc != 0 and 'already installed' not in rpm_upgrade.stderr
     
     - name: インストール結果の表示
       debug:
         msg: "{{ rpm_install.stdout_lines if rpm_install.changed else rpm_upgrade.stdout_lines if rpm_upgrade.changed else 'インストール済み' }}"
     
     - name: Pythonバージョンの確認
-      shell: python3.9 --version
+      shell: /opt/freeware/bin/python3.9 --version
       register: python_version
       changed_when: false
       
@@ -81,7 +78,7 @@
         msg: "インストール完了: {{ python_version.stdout }}"
     
     - name: Python実行パスの確認
-      shell: which python3.9
+      shell: which /opt/freeware/bin/python3.9 || echo "/opt/freeware/bin/python3.9"
       register: python_path
       changed_when: false
       

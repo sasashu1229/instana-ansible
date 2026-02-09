@@ -3,14 +3,14 @@
 # 書式: ホスト名 ansible_host=IPアドレス ansible_user=ユーザー名
 
 # 単一サーバーの例
-aix-server01 ansible_host=192.168.1.100 ansible_user=root
+p1317-pvm1.p1317.cecc.ihost.com ansible_host=129.40.95.161 ansible_user=cecuser
 
 # 複数サーバーの例
 # aix-server02 ansible_host=192.168.1.101 ansible_user=root
 # aix-server03 ansible_host=192.168.1.102 ansible_user=admin
 
 # SSH鍵を指定する場合
-# aix-server04 ansible_host=192.168.1.103 ansible_user=root ansible_ssh_private_key_file=/path/to/key
+p1317-pvm1.p1317.cecc.ihost.com ansible_host=129.40.95.161 ansible_user=root ansible_ssh_private_key_file=~/.ssh/pem_user_privatekey_aix_techzone.pem
 
 # 非標準SSHポートを使用する場合
 # aix-server05 ansible_host=192.168.1.104 ansible_user=root ansible_port=2222

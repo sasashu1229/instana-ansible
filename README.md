@@ -25,6 +25,7 @@
 ```
 ansible-python-aix/
 ├── README.md                    # このファイル
+├── ansible.cfg                  # Ansible設定ファイル（SSH接続設定含む）
 ├── install_python_aix.yaml      # メインのPlaybook
 ├── inventory.ini                # インベントリファイル
 ├── vars/
@@ -123,6 +124,62 @@ ansible-playbook -i inventory.ini install_python_aix.yaml -vvv
 
 ## トラブルシューティング
 
+### SSH接続エラー: "Host key verification failed"
+
+このエラーは、SSH接続時にホストキーの検証に失敗した場合に発生します。
+
+**解決方法1: ansible.cfgで自動的に解決（推奨・既に設定済み）**
+
+プロジェクトには既に `ansible.cfg` が含まれており、以下の設定でホストキー検証を無効化しています：
+
+```ini
+[defaults]
+host_key_checking = False
+
+[ssh_connection]
+ssh_args = -o ConnectTimeout=30 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
+```
+
+**解決方法2: 手動でホストキーを追加**
+
+```bash
+# ホストキーをknown_hostsに追加
+ssh-keyscan -H <AIXサーバーのIPアドレス> >> ~/.ssh/known_hosts
+
+# 例
+ssh-keyscan -H 129.40.95.161 >> ~/.ssh/known_hosts
+```
+
+**接続テスト**
+
+```bash
+# Ansible pingモジュールで接続確認
+ansible aix_servers -m ping
+
+# 成功時の出力例
+# p1317-pvm1.p1317.cecc.ihost.com | SUCCESS => {
+#     "changed": false,
+#     "ping": "pong"
+# }
+```
+
+### ファイル転送エラー: "dd: Requested a write of 32768 bytes, but wrote only..."
+
+このエラーは、リモートホストのホームディレクトリの容量不足が原因です。
+
+**解決方法（既に設定済み）**
+
+`ansible.cfg` で一時ディレクトリを `/tmp` に変更しています：
+
+```ini
+[defaults]
+remote_tmp = /tmp/.ansible-${USER}/tmp
+
+[ssh_connection]
+pipelining = False
+transfer_method = scp
+```
+
 ### RPMパッケージマネージャーがない場合
 
 AIXにRPMがインストールされていない場合は、以下のコマンドでインストールしてください：
@@ -156,7 +213,12 @@ ssh-keygen -R aix-server-ip
 # AIXサーバー上で実行
 export PATH=/opt/freeware/bin:$PATH
 which python3.9
+
+# または、フルパスで実行
+/opt/freeware/bin/python3.9 --version
 ```
+
+**注意**: このPlaybookでは、Python 3.9は `/opt/freeware/bin/python3.9` にインストールされます。
 
 ## カスタマイズ
 
