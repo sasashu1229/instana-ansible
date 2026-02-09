@@ -21,7 +21,7 @@ ansible_connection=ssh
 
 # Pythonインタープリタのパス（AIXサーバー上のPython）
 # Ansible実行に必要（Python 2.7以上または3.5以上）
-ansible_python_interpreter=/usr/bin/python3
+ansible_python_interpreter=/opt/freeware/bin/python3-bak
 
 # 権限昇格の設定
 # AIXではsudoの代わりにsuを使用する場合があります
