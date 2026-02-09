@@ -1,0 +1,410 @@
+---
+# AIX OS7.2へPython 3.9をインストールするAnsible Playbook
+# インターネット接続なし環境向け
+# エラーハンドリング強化版
+
+- name: Install Python 3.9 on AIX 7.2
+  hosts: aix_servers
+  gather_facts: no
+  become: yes
+  
+  vars_files:
+    - vars/python_vars.yaml
+  
+  tasks:
+    # ========================================
+    # Python検出とFactsの収集
+    # ========================================
+    - name: 利用可能なPythonインタープリタの検出
+      raw: |
+        for python_path in /usr/bin/python /usr/bin/python3 /opt/freeware/bin/python /opt/freeware/bin/python3 /usr/local/bin/python /usr/local/bin/python3; do
+          if [ -x "$python_path" ]; then
+            echo "$python_path"
+            exit 0
+          fi
+        done
+        echo "none"
+      register: python_detection
+      changed_when: false
+      failed_when: false
+      
+    - name: 検出されたPythonの表示
+      debug:
+        msg: "検出されたPython: {{ python_detection.stdout_lines[0] if python_detection.stdout_lines else 'なし' }}"
+      delegate_to: localhost
+      
+    - name: Pythonインタープリタの設定
+      set_fact:
+        ansible_python_interpreter: "{{ python_detection.stdout_lines[0] }}"
+      when:
+        - python_detection.stdout_lines is defined
+        - python_detection.stdout_lines | length > 0
+        - python_detection.stdout_lines[0] != 'none'
+    
+    - name: Factsの収集（Pythonが利用可能な場合）
+      setup:
+      when:
+        - python_detection.stdout_lines is defined
+        - python_detection.stdout_lines | length > 0
+        - python_detection.stdout_lines[0] != 'none'
+      failed_when: false
+    
+    # ========================================
+    # 事前チェック
+    # ========================================
+    - name: AIXバージョンの確認
+      shell: oslevel -s
+      register: aix_version
+      changed_when: false
+      failed_when: false
+      retries: 3
+      delay: 2
+      
+    - name: AIXバージョンチェックの失敗確認
+      fail:
+        msg: |
+          AIXバージョンの確認に失敗しました。
+          エラーコード: {{ aix_version.rc }}
+          エラー出力: {{ aix_version.stderr | default('なし') }}
+          標準出力: {{ aix_version.stdout | default('なし') }}
+      when: aix_version.rc != 0
+      
+    - name: AIXバージョンの表示
+      debug:
+        msg: "AIX Version: {{ aix_version.stdout }}"
+    
+    - name: AIX 7.2以上であることを確認
+      fail:
+        msg: |
+          このPlaybookはAIX 7.2以上が必要です。
+          検出されたバージョン: {{ aix_version.stdout }}
+      when:
+        - aix_version.stdout is defined
+        - not (aix_version.stdout is search('7200-') or aix_version.stdout is search('7300-'))
+    
+    - name: RPMパッケージマネージャーの確認
+      shell: rpm --version
+      register: rpm_check
+      changed_when: false
+      failed_when: false
+      retries: 3
+      delay: 2
+      
+    - name: RPMが利用可能か確認
+      fail:
+        msg: |
+          RPMパッケージマネージャーがインストールされていません。
+          以下のコマンドでRPMをインストールしてください:
+          installp -aXYd /path/to/media rpm.rte
+          
+          エラー詳細:
+          - 終了コード: {{ rpm_check.rc }}
+          - エラー出力: {{ rpm_check.stderr | default('なし') }}
+      when: rpm_check.rc != 0
+    
+    # ========================================
+    # ディスク容量チェック
+    # ========================================
+    - name: /tmpディレクトリの空き容量確認
+      shell: df -m /tmp | tail -1 | awk '{print $3}'
+      register: tmp_free_space
+      changed_when: false
+      failed_when: false
+      
+    - name: 十分なディスク容量があるか確認
+      fail:
+        msg: |
+          /tmpディレクトリの空き容量が不足しています。
+          必要容量: 500MB以上
+          現在の空き容量: {{ tmp_free_space.stdout | default('不明') }}MB
+          
+          以下のコマンドで不要なファイルを削除してください:
+          find /tmp -type f -mtime +7 -delete
+      when:
+        - tmp_free_space.rc == 0
+        - tmp_free_space.stdout | int < 500
+    
+    # ========================================
+    # 作業ディレクトリの準備
+    # ========================================
+    - name: 作業用一時ディレクトリの作成
+      file:
+        path: "{{ temp_dir }}"
+        state: directory
+        mode: '0755'
+      register: temp_dir_result
+      failed_when: false
+      
+    - name: 作業ディレクトリ作成の失敗確認
+      fail:
+        msg: |
+          作業用ディレクトリの作成に失敗しました。
+          パス: {{ temp_dir }}
+          エラー: {{ temp_dir_result.msg | default('不明なエラー') }}
+      when: temp_dir_result.failed | default(false)
+    
+    # ========================================
+    # RPMファイルの転送
+    # ========================================
+    - name: ローカルのRPMファイル存在確認
+      stat:
+        path: "{{ local_rpm_path }}/{{ python_rpm_file }}"
+      delegate_to: localhost
+      register: local_rpm_stat
+      become: no
+      
+    - name: ローカルRPMファイルが存在するか確認
+      fail:
+        msg: |
+          ローカルにRPMファイルが見つかりません。
+          パス: {{ local_rpm_path }}/{{ python_rpm_file }}
+          
+          以下を確認してください:
+          1. RPMファイルが正しいディレクトリに配置されているか
+          2. ファイル名が正しいか
+          3. ファイルの読み取り権限があるか
+      when: not local_rpm_stat.stat.exists
+    
+    - name: Python RPMパッケージのコピー
+      copy:
+        src: "{{ local_rpm_path }}/{{ python_rpm_file }}"
+        dest: "{{ temp_dir }}/{{ python_rpm_file }}"
+        mode: '0644'
+      register: copy_result
+      retries: 3
+      delay: 5
+      until: copy_result is succeeded
+      failed_when: false
+      
+    - name: RPMファイルコピーの失敗確認
+      fail:
+        msg: |
+          RPMファイルの転送に失敗しました。
+          ソース: {{ local_rpm_path }}/{{ python_rpm_file }}
+          転送先: {{ temp_dir }}/{{ python_rpm_file }}
+          エラー: {{ copy_result.msg | default('不明なエラー') }}
+          
+          以下を確認してください:
+          1. ネットワーク接続が安定しているか
+          2. 転送先のディスク容量が十分か
+          3. SSH接続が正常か
+      when: copy_result.failed | default(false)
+    
+    - name: 転送されたRPMファイルの整合性確認
+      stat:
+        path: "{{ temp_dir }}/{{ python_rpm_file }}"
+        checksum_algorithm: md5
+      register: remote_rpm_stat
+      
+    - name: RPMファイルが正しく転送されたか確認
+      fail:
+        msg: |
+          RPMファイルが正しく転送されませんでした。
+          ファイルが存在しないか、サイズが0バイトです。
+          パス: {{ temp_dir }}/{{ python_rpm_file }}
+      when: not remote_rpm_stat.stat.exists or remote_rpm_stat.stat.size == 0
+    
+    # ========================================
+    # 既存インストール状況の確認
+    # ========================================
+    - name: 既存のPython 3.9インストール状況の確認
+      shell: rpm -qa | grep -i python3.9
+      register: python_installed
+      changed_when: false
+      failed_when: false
+    
+    - name: 既存インストール状況の表示
+      debug:
+        msg: "既存Python 3.9: {{ python_installed.stdout_lines if python_installed.stdout_lines else '未インストール' }}"
+    
+    - name: 既存Pythonのバージョン確認（インストール済みの場合）
+      shell: /opt/freeware/bin/python3.9 --version
+      register: existing_python_version
+      changed_when: false
+      failed_when: false
+      when: python_installed.stdout != ""
+      
+    - name: 既存Pythonバージョンの表示
+      debug:
+        msg: "現在インストールされているバージョン: {{ existing_python_version.stdout }}"
+      when:
+        - python_installed.stdout != ""
+        - existing_python_version.rc == 0
+    
+    # ========================================
+    # RPMパッケージのインストール/アップグレード
+    # ========================================
+    - name: Python 3.9 RPMパッケージのインストール
+      shell: rpm -ivh {{ temp_dir }}/{{ python_rpm_file }}
+      register: rpm_install
+      when: python_installed.stdout == ""
+      failed_when: false
+      retries: 2
+      delay: 3
+      
+    - name: インストール失敗時のエラー詳細表示
+      fail:
+        msg: |
+          Python 3.9のインストールに失敗しました。
+          
+          エラー詳細:
+          - 終了コード: {{ rpm_install.rc }}
+          - 標準出力: {{ rpm_install.stdout | default('なし') }}
+          - エラー出力: {{ rpm_install.stderr | default('なし') }}
+          
+          考えられる原因:
+          1. 依存パッケージが不足している
+          2. RPMファイルが破損している
+          3. 権限が不足している
+          4. ディスク容量が不足している
+          
+          対処方法:
+          - rpm -qpR {{ temp_dir }}/{{ python_rpm_file }} で依存関係を確認
+          - rpm -K {{ temp_dir }}/{{ python_rpm_file }} でRPMの整合性を確認
+      when:
+        - python_installed.stdout == ""
+        - rpm_install.failed | default(false)
+        - rpm_install.rc != 0
+      
+    - name: Python 3.9 RPMパッケージのアップグレード（既にインストール済みの場合）
+      shell: rpm -Uvh {{ temp_dir }}/{{ python_rpm_file }}
+      register: rpm_upgrade
+      when: python_installed.stdout != ""
+      failed_when: false
+      retries: 2
+      delay: 3
+      
+    - name: アップグレード失敗時のエラー詳細表示
+      fail:
+        msg: |
+          Python 3.9のアップグレードに失敗しました。
+          
+          エラー詳細:
+          - 終了コード: {{ rpm_upgrade.rc }}
+          - 標準出力: {{ rpm_upgrade.stdout | default('なし') }}
+          - エラー出力: {{ rpm_upgrade.stderr | default('なし') }}
+          
+          考えられる原因:
+          1. 同じバージョンが既にインストールされている
+          2. より新しいバージョンがインストールされている
+          3. 依存関係の問題
+          
+          対処方法:
+          - rpm -qa | grep python3.9 で現在のバージョンを確認
+          - rpm -e python3.9 で既存バージョンを削除してから再インストール
+      when:
+        - python_installed.stdout != ""
+        - rpm_upgrade.failed | default(false)
+        - rpm_upgrade.rc != 0
+        - "'already installed' not in rpm_upgrade.stderr | default('')"
+    
+    - name: インストール結果の表示
+      debug:
+        msg: "{{ rpm_install.stdout_lines if rpm_install.changed else rpm_upgrade.stdout_lines if rpm_upgrade.changed else 'インストール済み' }}"
+    
+    # ========================================
+    # インストール後の検証
+    # ========================================
+    - name: Pythonバージョンの確認
+      shell: /opt/freeware/bin/python3.9 --version
+      register: python_version
+      changed_when: false
+      failed_when: false
+      retries: 3
+      delay: 2
+      
+    - name: Pythonバージョン確認の失敗チェック
+      fail:
+        msg: |
+          Pythonのインストール検証に失敗しました。
+          Python実行ファイルが見つからないか、実行できません。
+          
+          エラー詳細:
+          - 終了コード: {{ python_version.rc }}
+          - エラー出力: {{ python_version.stderr | default('なし') }}
+          
+          対処方法:
+          1. ls -la /opt/freeware/bin/python3.9 でファイルの存在を確認
+          2. file /opt/freeware/bin/python3.9 でファイルタイプを確認
+          3. ldd /opt/freeware/bin/python3.9 で依存ライブラリを確認
+      when: python_version.rc != 0
+      
+    - name: インストールされたPythonバージョンの表示
+      debug:
+        msg: "インストール完了: {{ python_version.stdout }}"
+    
+    - name: Python実行パスの確認
+      shell: which /opt/freeware/bin/python3.9 || echo "/opt/freeware/bin/python3.9"
+      register: python_path
+      changed_when: false
+      
+    - name: Python実行パスの表示
+      debug:
+        msg: "Python実行パス: {{ python_path.stdout }}"
+    
+    - name: Python基本動作テスト
+      shell: /opt/freeware/bin/python3.9 -c "import sys; print(sys.version)"
+      register: python_test
+      changed_when: false
+      failed_when: false
+      
+    - name: Python動作テストの失敗チェック
+      fail:
+        msg: |
+          Pythonの基本動作テストに失敗しました。
+          Pythonは実行できますが、正常に動作していない可能性があります。
+          
+          エラー詳細:
+          - 終了コード: {{ python_test.rc }}
+          - エラー出力: {{ python_test.stderr | default('なし') }}
+          
+          対処方法:
+          1. 依存ライブラリが正しくインストールされているか確認
+          2. /opt/freeware/lib のライブラリパスを確認
+      when: python_test.rc != 0
+      
+    - name: Python動作テスト結果
+      debug:
+        msg: "Python動作確認: 正常"
+      when: python_test.rc == 0
+    
+    # ========================================
+    # クリーンアップ
+    # ========================================
+    - name: 一時ファイルのクリーンアップ
+      file:
+        path: "{{ temp_dir }}/{{ python_rpm_file }}"
+        state: absent
+      when: cleanup_temp_files | bool
+      register: cleanup_result
+      failed_when: false
+      
+    - name: クリーンアップ警告
+      debug:
+        msg: "警告: 一時ファイルの削除に失敗しました。手動で削除してください: {{ temp_dir }}/{{ python_rpm_file }}"
+      when:
+        - cleanup_temp_files | bool
+        - cleanup_result.failed | default(false)
+    
+    # ========================================
+    # 完了メッセージ
+    # ========================================
+    - name: インストール完了メッセージ
+      debug:
+        msg:
+          - "=========================================="
+          - "Python 3.9のインストールが完了しました"
+          - "=========================================="
+          - "AIXバージョン: {{ aix_version.stdout }}"
+          - "Pythonバージョン: {{ python_version.stdout }}"
+          - "実行パス: {{ python_path.stdout }}"
+          - "動作確認: {{ 'OK' if python_test.rc == 0 else 'NG' }}"
+          - "=========================================="
+          - ""
+          - "次のステップ:"
+          - "1. export PATH=/opt/freeware/bin:$PATH を .profile に追加"
+          - "2. python3.9 --version でバージョン確認"
+          - "3. python3.9 -m pip --version でpipの動作確認"
+          - "=========================================="
+
+# Made with Bob
