@@ -1,0 +1,35 @@
+[aix_servers]
+# AIXサーバーのホスト情報を記載してください
+# 書式: ホスト名 ansible_host=IPアドレス ansible_user=ユーザー名
+
+# 単一サーバーの例
+p1317-pvm1.p1317.cecc.ihost.com ansible_host=129.40.95.161 ansible_user=cecuser
+
+# 複数サーバーの例
+# aix-server02 ansible_host=192.168.1.101 ansible_user=root
+# aix-server03 ansible_host=192.168.1.102 ansible_user=admin
+
+# SSH鍵を指定する場合
+p1317-pvm1.p1317.cecc.ihost.com ansible_host=129.40.95.161 ansible_user=root ansible_ssh_private_key_file=~/.ssh/pem_user_privatekey_aix_techzone.pem
+
+# 非標準SSHポートを使用する場合
+# aix-server05 ansible_host=192.168.1.104 ansible_user=root ansible_port=2222
+
+[aix_servers:vars]
+# AIX共通設定
+ansible_connection=ssh
+
+# Pythonインタープリタのパス（AIXサーバー上のPython）
+# Ansible実行に必要（Python 2.7以上または3.5以上）
+ansible_python_interpreter=/opt/freeware/bin/python3-bak
+
+# 権限昇格の設定
+# AIXではsudoの代わりにsuを使用する場合があります
+# ansible_become_method=su
+# ansible_become_user=root
+
+# SSH接続のタイムアウト設定（秒）
+# ansible_ssh_timeout=30
+
+# SSH接続の再試行回数
+# ansible_ssh_retries=3

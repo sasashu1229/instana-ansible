@@ -1,0 +1,28 @@
+---
+# Python 3.9インストール用変数ファイル
+# AIX 7.2環境向け
+
+# Python RPMパッケージファイル名
+python_rpm_file: "python3.9-3.9.6-1.aix7.1.ppc.rpm"
+
+# ローカルのRPMファイル配置パス（Ansibleコントローラー側）
+# filesディレクトリにRPMファイルを配置してください
+local_rpm_path: "files"
+
+# AIXサーバー上の一時作業ディレクトリ
+temp_dir: "/tmp/python_install"
+
+# インストール後に一時ファイルをクリーンアップするか
+cleanup_temp_files: true
+
+# RPMインストールオプション（必要に応じて調整）
+# -i: インストール
+# -v: 詳細表示
+# -h: プログレスバー表示
+rpm_install_options: "-ivh"
+
+# RPMアップグレードオプション
+# -U: アップグレード（既存パッケージがある場合）
+rpm_upgrade_options: "-Uvh"
+
+# Made with Bob
