@@ -1,4 +1,4 @@
-# AIX OS7.3 Python 3.9インストール Ansible Playbook
+# AIX OS7.2 Python 3.9インストール Ansible Playbook
 
 このAnsible Playbookは、AIX OS 7.2環境にPython 3.9をRPMパッケージを使用してインストールするためのものです。
 
