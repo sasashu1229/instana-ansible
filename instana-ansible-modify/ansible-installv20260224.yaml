@@ -1,0 +1,208 @@
+---
+- name: Install instana agent
+  hosts: managed-server
+  become: true
+  become_method: sudo
+  gather_facts: true
+  vars_files:
+    - ansible_vars.yaml
+
+  pre_tasks:
+    - name: Set default variables
+      ansible.builtin.set_fact:
+        rpm_remote_dir: "{{ rpm_remote_dir | default('/tmp') }}"
+        backup_timestamp: "{{ ansible_date_time.iso8601_basic_short }}"
+
+    - name: Check if instana-agent-static is already installed
+      ansible.builtin.command: rpm -aq "instana-agent-static*"
+      register: rpm_check_static
+      changed_when: false
+      failed_when: false
+
+    - name: Check if instana-agent-dynamic is already installed
+      ansible.builtin.command: rpm -aq "instana-agent-dynamic*"
+      register: rpm_check_dynamic
+      changed_when: false
+      failed_when: false
+
+    - name: Set fact for any instana-agent installed
+      ansible.builtin.set_fact:
+        instana_already_installed: "{{ (rpm_check_static.stdout | trim) != '' or (rpm_check_dynamic.stdout | trim) != '' }}"
+
+    - name: Skip this host if instana-agent is already installed
+      ansible.builtin.debug:
+        msg: |
+          instana-agent は既にインストールされています。処理をスキップします。
+          アップグレードする場合は ansible-upgrade-20260224.yaml を使用してください。
+          インストール済みパッケージ:
+          - instana-agent-static: {{ rpm_check_static.stdout | default('なし') }}
+          - instana-agent-dynamic: {{ rpm_check_dynamic.stdout | default('なし') }}
+      when: instana_already_installed | bool
+
+    - name: Stop processing on this host when already installed
+      ansible.builtin.meta: end_host
+      when: instana_already_installed | bool
+
+    - name: Ensure remote rpm directory exists
+      ansible.builtin.file:
+        path: "{{ rpm_remote_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: Copy instana agent rpm file to remote
+      ansible.builtin.copy:
+        # コントローラ側：playbook と同階層の files/ に rpm を置く想定
+        src: "files/{{ new_rpm_filename }}"
+        dest: "{{ rpm_remote_dir }}/{{ new_rpm_filename }}"
+        mode: "0644"
+
+    - name: Show rpm release (for logging)
+      ansible.builtin.command: >
+        rpm -qip --queryformat '%{NAME}-%{VERSION}-%{RELEASE}.%{ARCH}'
+        "{{ rpm_remote_dir }}/{{ new_rpm_filename }}"
+      register: rpm_file_info
+      changed_when: false
+
+    - name: Display rpm file info
+      ansible.builtin.debug:
+        msg: "導入予定RPM: {{ rpm_file_info.stdout }}"
+
+  tasks:
+    - name: Install instana agent RPM (rpm -Uvh)
+      block:
+        - name: Install/Upgrade RPM from remote path
+          ansible.builtin.command: rpm -Uvh "{{ rpm_remote_dir }}/{{ new_rpm_filename }}"
+          register: rpm_install
+          changed_when: true
+          failed_when: rpm_install.rc != 0
+
+        - name: Message about installation
+          ansible.builtin.debug:
+            msg: "rpmが正常にインストールされました（{{ new_rpm_filename }}）"
+
+      rescue:
+        - name: Show error details if install failed
+          ansible.builtin.debug:
+            msg:
+              - "=========================================="
+              - "RPM Install Failed"
+              - "=========================================="
+              - "File: {{ new_rpm_filename }}"
+              - "Path: {{ rpm_remote_dir }}/{{ new_rpm_filename }}"
+              - "Return Code: {{ rpm_install.rc | default('unknown') }}"
+              - "STDOUT: {{ rpm_install.stdout | default('(empty)') }}"
+              - "STDERR: {{ rpm_install.stderr | default('(empty)') }}"
+              - "=========================================="
+
+        - name: Fail the play for this host
+          ansible.builtin.fail:
+            msg: |
+              RPM install failed.
+              Return Code: {{ rpm_install.rc | default('unknown') }}
+              Error: {{ rpm_install.stderr | default('No error message') }}
+
+    - name: Create backup directory
+      ansible.builtin.file:
+        path: /var/backups/instana-agent
+        state: directory
+        mode: "0755"
+
+    - name: Backup mvn-settings.xml
+      ansible.builtin.copy:
+        src: /opt/instana/agent/etc/mvn-settings.xml
+        dest: "/var/backups/instana-agent/mvn-settings.xml.{{ backup_timestamp }}"
+        remote_src: true
+        mode: '0644'
+
+    - name: Backup configuration.yaml
+      ansible.builtin.copy:
+        src: /opt/instana/agent/etc/instana/configuration.yaml
+        dest: "/var/backups/instana-agent/configuration.yaml.{{ backup_timestamp }}"
+        remote_src: true
+        mode: '0644'
+
+    - name: Backup com.instana.agent.main.sender.Backend.cfg
+      ansible.builtin.copy:
+        src: /opt/instana/agent/etc/instana/com.instana.agent.main.sender.Backend.cfg
+        dest: "/var/backups/instana-agent/com.instana.agent.main.sender.Backend.cfg.{{ backup_timestamp }}"
+        remote_src: true
+        mode: '0644'
+
+    - name: Replace mvn-settings.xml with template
+      ansible.builtin.copy:
+        src: "files/mvn-settings.xml"
+        dest: /opt/instana/agent/etc/mvn-settings.xml
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Replace configuration.yaml with template
+      ansible.builtin.copy:
+        src: "files/configuration.yaml"
+        dest: /opt/instana/agent/etc/instana/configuration.yaml
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Replace Backend.cfg with template
+      ansible.builtin.copy:
+        src: "files/com.instana.agent.main.sender.Backend.cfg"
+        dest: /opt/instana/agent/etc/instana/com.instana.agent.main.sender.Backend.cfg
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Diff mvn-settings.xml
+      ansible.builtin.command:
+        cmd: >
+          diff /opt/instana/agent/etc/mvn-settings.xml
+          "/var/backups/instana-agent/mvn-settings.xml.{{ backup_timestamp }}"
+      register: diff_mvn
+      changed_when: false
+      failed_when: false
+
+    - name: Show diff result (mvn-settings.xml)
+      ansible.builtin.debug:
+        msg: "{{ '差分なし' if diff_mvn.rc == 0 else '差分あり' }}"
+
+    - name: Diff configuration.yaml
+      ansible.builtin.command:
+        cmd: >
+          diff /opt/instana/agent/etc/instana/configuration.yaml
+          "/var/backups/instana-agent/configuration.yaml.{{ backup_timestamp }}"
+      register: diff_cfg
+      changed_when: false
+      failed_when: false
+
+    - name: Show diff result (configuration.yaml)
+      ansible.builtin.debug:
+        msg: "{{ '差分なし' if diff_cfg.rc == 0 else '差分あり' }}"
+
+    - name: Diff Backend.cfg
+      ansible.builtin.command:
+        cmd: >
+          diff /opt/instana/agent/etc/instana/com.instana.agent.main.sender.Backend.cfg
+          "/var/backups/instana-agent/com.instana.agent.main.sender.Backend.cfg.{{ backup_timestamp }}"
+      register: diff_backend
+      changed_when: false
+      failed_when: false
+
+    - name: Show diff result (Backend.cfg)
+      ansible.builtin.debug:
+        msg: "{{ '差分なし' if diff_backend.rc == 0 else '差分あり' }}"
+
+    - name: Check whether instana agent java process is running
+      ansible.builtin.command: pgrep -f /opt/instana/agent/jvm/bin/java
+      register: pgrep_result
+      changed_when: false
+      failed_when: false
+
+    - name: Show running status
+      ansible.builtin.debug:
+        msg: "サービスは正常稼働しています"
+      when: pgrep_result.rc == 0
+
+    - name: Fail if agent is not running
+      ansible.builtin.fail:
+        msg: "サービスは稼働していません"
+      when: pgrep_result.rc != 0
